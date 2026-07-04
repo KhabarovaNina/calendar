@@ -216,6 +216,26 @@ export interface paths {
         patch: operations["Me_update"];
         trace?: never;
     };
+    "/slots": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * @description Рассчитать доступные времена для бронирования события.
+         *     Публичный эндпоинт страницы бронирования.
+         */
+        get: operations["Slots_list"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -903,6 +923,51 @@ export interface components {
          * @enum {string}
          */
         SchedulingType: "individual" | "collective" | "roundRobin";
+        /** @description Свободный слот для бронирования */
+        Slot: {
+            /**
+             * Format: date-time
+             * @description Начало доступного слота
+             */
+            start: string;
+            /**
+             * Format: date-time
+             * @description Конец слота
+             */
+            end: string;
+            /**
+             * Format: int32
+             * @description Осталось мест — только для групповых событий с `seatsPerTimeSlot`
+             */
+            seatsRemaining?: number;
+        };
+        /**
+         * @description Доступные слоты в запрошенном диапазоне, отсортированы по времени начала
+         * @example {
+         *       "timeZone": "Europe/Moscow",
+         *       "slots": [
+         *         {
+         *           "start": "2026-07-10T09:00:00Z",
+         *           "end": "2026-07-10T09:15:00Z"
+         *         },
+         *         {
+         *           "start": "2026-07-10T09:15:00Z",
+         *           "end": "2026-07-10T09:30:00Z"
+         *         },
+         *         {
+         *           "start": "2026-07-11T12:00:00Z",
+         *           "end": "2026-07-11T12:15:00Z",
+         *           "seatsRemaining": 3
+         *         }
+         *       ]
+         *     }
+         */
+        SlotsResponse: {
+            /** @description Свободные слоты; время в UTC, группировать по дате можно на клиенте */
+            slots: components["schemas"]["Slot"][];
+            /** @description Таймзона, в которой рассчитаны слоты (совпадает с запрошенной) */
+            timeZone: components["schemas"]["TimeZone"];
+        };
         /** @description URL-слаг: строчные буквы, цифры и дефисы */
         Slug: string;
         /** @description IANA-таймзона, например `Europe/Moscow` */
@@ -1639,6 +1704,46 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["User"];
+                };
+            };
+            /** @description An unexpected error response. */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    Slots_list: {
+        parameters: {
+            query: {
+                /** @description Тип события, для которого считаются слоты */
+                eventTypeId: number;
+                /** @description Начало диапазона (дата включительно) */
+                start: string;
+                /** @description Конец диапазона (дата включительно) */
+                end: string;
+                /** @description Таймзона участника; по умолчанию — таймзона расписания */
+                timeZone?: components["schemas"]["TimeZone"];
+                /** @description Выбранная длительность в минутах для событий с `lengthInMinutesOptions` */
+                duration?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The request has succeeded. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SlotsResponse"];
                 };
             };
             /** @description An unexpected error response. */

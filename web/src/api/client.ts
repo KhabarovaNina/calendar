@@ -21,6 +21,8 @@ export type Booking = components["schemas"]["Booking"];
 export type BookingStatus = components["schemas"]["BookingStatus"];
 export type Attendee = components["schemas"]["Attendee"];
 export type EventLocation = components["schemas"]["EventLocation"];
+export type Slot = components["schemas"]["Slot"];
+export type SlotsResponse = components["schemas"]["SlotsResponse"];
 
 export class ApiError extends Error {
   constructor(
@@ -83,6 +85,20 @@ export const availabilityApi = {
         body,
       }),
     ),
+};
+
+// ── /slots ──
+export interface SlotsQuery {
+  eventTypeId: number;
+  start: string;
+  end: string;
+  timeZone?: string;
+  duration?: number;
+}
+
+export const slotsApi = {
+  list: async (query: SlotsQuery) =>
+    unwrap(await client.GET("/slots", { params: { query } })),
 };
 
 // ── /bookings ──
