@@ -1,5 +1,20 @@
 import { useEffect, useState } from "react";
-import { availability, type AvailabilityRule, type Schedule, type Weekday } from "../api";
+import {
+  Button,
+  Card,
+  Group,
+  Loader,
+  Select,
+  Stack,
+  Switch,
+  Text,
+  Title,
+} from "@mantine/core";
+import { TimeInput } from "@mantine/dates";
+import { notifications } from "@mantine/notifications";
+import { availabilityApi, type AvailabilityRule, type Schedule } from "../api/client";
+
+type Weekday = AvailabilityRule["days"][number];
 
 const DAYS: { key: Weekday; label: string }[] = [
   { key: "monday", label: "Понедельник" },
@@ -11,122 +26,151 @@ const DAYS: { key: Weekday; label: string }[] = [
   { key: "sunday", label: "Воскресенье" },
 ];
 
+const TZ = [
+  "Europe/Moscow",
+  "Europe/Kaliningrad",
+  "Asia/Yekaterinburg",
+  "Asia/Novosibirsk",
+  "Asia/Vladivostok",
+  "Europe/London",
+  "UTC",
+];
+
 interface DayState {
   enabled: boolean;
-  startTime: string;
-  endTime: string;
+  start: string;
+  end: string;
 }
 
-type WeekState = Record<Weekday, DayState>;
+const hhmm = (t: string) => t.slice(0, 5); // "09:00:00" → "09:00"
 
-function rulesToWeek(rules: AvailabilityRule[]): WeekState {
-  const week = {} as WeekState;
-  for (const { key } of DAYS) {
-    const rule = rules.find((r) => r.days.includes(key));
-    week[key] = rule
-      ? { enabled: true, startTime: rule.startTime, endTime: rule.endTime }
-      : { enabled: false, startTime: "09:00", endTime: "18:00" };
+function scheduleToDays(schedule: Schedule): Record<Weekday, DayState> {
+  const result = {} as Record<Weekday, DayState>;
+  for (const { key } of DAYS) result[key] = { enabled: false, start: "09:00", end: "18:00" };
+  for (const rule of schedule.availability) {
+    for (const day of rule.days) {
+      result[day] = { enabled: true, start: hhmm(rule.startTime), end: hhmm(rule.endTime) };
+    }
   }
-  return week;
+  return result;
 }
 
-function weekToRules(week: WeekState): AvailabilityRule[] {
-  // Дни с одинаковым интервалом группируются в одно правило
-  const groups = new Map<string, Weekday[]>();
+/** Группируем дни с одинаковым интервалом в правила AvailabilityRule[] */
+function daysToRules(days: Record<Weekday, DayState>): AvailabilityRule[] {
+  const byInterval = new Map<string, Weekday[]>();
   for (const { key } of DAYS) {
-    const d = week[key];
+    const d = days[key];
     if (!d.enabled) continue;
-    const groupKey = `${d.startTime}-${d.endTime}`;
-    groups.set(groupKey, [...(groups.get(groupKey) ?? []), key]);
+    const k = `${d.start}-${d.end}`;
+    if (!byInterval.has(k)) byInterval.set(k, []);
+    byInterval.get(k)!.push(key);
   }
-  return [...groups.entries()].map(([groupKey, days]) => {
-    const [startTime, endTime] = groupKey.split("-");
-    return { days, startTime, endTime };
+  return [...byInterval.entries()].map(([k, dayList]) => {
+    const [start, end] = k.split("-");
+    return { days: dayList, startTime: `${start}:00`, endTime: `${end}:00` };
   });
 }
 
 export default function AvailabilityPage() {
   const [schedule, setSchedule] = useState<Schedule | null>(null);
-  const [week, setWeek] = useState<WeekState | null>(null);
+  const [days, setDays] = useState<Record<Weekday, DayState> | null>(null);
+  const [tz, setTz] = useState("Europe/Moscow");
   const [saving, setSaving] = useState(false);
-  const [saved, setSaved] = useState(false);
 
   useEffect(() => {
-    availability.list().then((page) => {
-      const s = page.items.find((x) => x.isDefault) ?? page.items[0];
+    availabilityApi.list().then((page) => {
+      const s = page.items[0];
       if (s) {
         setSchedule(s);
-        setWeek(rulesToWeek(s.availability));
+        setDays(scheduleToDays(s));
+        setTz(s.timeZone);
       }
     });
   }, []);
 
-  if (!schedule || !week) return <div className="loading">Загрузка…</div>;
+  if (!schedule || !days) return <Loader />;
 
-  const setDay = (day: Weekday, patch: Partial<DayState>) =>
-    setWeek({ ...week, [day]: { ...week[day], ...patch } });
+  const setDay = (key: Weekday, patch: Partial<DayState>) =>
+    setDays({ ...days, [key]: { ...days[key], ...patch } });
 
   const save = async () => {
     setSaving(true);
-    await availability.update(schedule.id, { availability: weekToRules(week) });
-    setSaving(false);
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
+    try {
+      await availabilityApi.update(schedule.id, {
+        name: schedule.name,
+        timeZone: tz,
+        availability: daysToRules(days),
+        isDefault: schedule.isDefault,
+      });
+      notifications.show({
+        color: "teal",
+        title: "Сохранено",
+        message: "Расписание отправлено на mock-сервер (Prism не персистит).",
+      });
+    } catch (e) {
+      notifications.show({ color: "red", title: "Ошибка", message: e instanceof Error ? e.message : "" });
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
-    <>
-      <div className="page-header">
+    <Stack>
+      <Group justify="space-between" align="flex-start">
         <div>
-          <h1>Доступность</h1>
-          <p className="subtitle">
-            {schedule.name} · Таймзона: {schedule.timeZone}
-          </p>
+          <Title order={2}>Доступность</Title>
+          <Text c="dimmed">Часы, в которые вас можно забронировать · {schedule.name}</Text>
         </div>
-        <button className="btn primary" onClick={save} disabled={saving}>
-          {saving ? "Сохранение…" : saved ? "✓ Сохранено" : "Сохранить"}
-        </button>
-      </div>
+        <Button onClick={save} loading={saving}>
+          Сохранить
+        </Button>
+      </Group>
 
-      <div className="card" style={{ padding: "8px 24px" }}>
-        {DAYS.map(({ key, label }) => {
-          const d = week[key];
-          return (
-            <div className="day-row" key={key}>
-              <label className="day-name">
-                <input
-                  type="checkbox"
+      <Card withBorder padding="lg">
+        <Select
+          label="Таймзона"
+          data={TZ}
+          value={tz}
+          onChange={(v) => setTz(v ?? tz)}
+          mb="md"
+          maw={280}
+        />
+
+        <Stack gap="xs">
+          {DAYS.map(({ key, label }) => {
+            const d = days[key];
+            return (
+              <Group key={key} gap="md" wrap="nowrap">
+                <Switch
+                  label={label}
                   checked={d.enabled}
-                  onChange={(e) => setDay(key, { enabled: e.target.checked })}
+                  onChange={(e) => setDay(key, { enabled: e.currentTarget.checked })}
+                  styles={{ body: { width: 160 } }}
                 />
-                {label}
-              </label>
-              {d.enabled ? (
-                <>
-                  <input
-                    type="time"
-                    value={d.startTime}
-                    onChange={(e) => setDay(key, { startTime: e.target.value })}
-                  />
-                  <span className="muted">—</span>
-                  <input
-                    type="time"
-                    value={d.endTime}
-                    onChange={(e) => setDay(key, { endTime: e.target.value })}
-                  />
-                </>
-              ) : (
-                <span className="off">Недоступно</span>
-              )}
-            </div>
-          );
-        })}
-      </div>
-
-      <p className="muted" style={{ marginTop: 16 }}>
-        Слоты на публичной странице бронирования рассчитываются из этого расписания с учётом
-        существующих броней, буферов и минимального времени до брони.
-      </p>
-    </>
+                {d.enabled ? (
+                  <Group gap="xs" wrap="nowrap">
+                    <TimeInput
+                      value={d.start}
+                      onChange={(e) => setDay(key, { start: e.currentTarget.value })}
+                      w={110}
+                    />
+                    <Text c="dimmed">—</Text>
+                    <TimeInput
+                      value={d.end}
+                      onChange={(e) => setDay(key, { end: e.currentTarget.value })}
+                      w={110}
+                    />
+                  </Group>
+                ) : (
+                  <Text c="dimmed" size="sm">
+                    Недоступно
+                  </Text>
+                )}
+              </Group>
+            );
+          })}
+        </Stack>
+      </Card>
+    </Stack>
   );
 }

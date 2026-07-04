@@ -33,6 +33,20 @@ model DateOverride {
 }
 
 /** Расписание доступности организатора */
+@example(#{
+  id: 1,
+  name: "Рабочие часы",
+  timeZone: "Europe/Moscow",
+  availability: #[
+    #{
+      days: #[Weekday.monday, Weekday.tuesday, Weekday.wednesday, Weekday.thursday, Weekday.friday],
+      startTime: plainTime.fromISO("09:00:00"),
+      endTime: plainTime.fromISO("18:00:00"),
+    }
+  ],
+  isDefault: true,
+  ownerId: 1,
+})
 model Schedule {
   @visibility(Lifecycle.Read)
   id: int64;

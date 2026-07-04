@@ -9,6 +9,16 @@ namespace CalendarService;
 // Блок /me — профиль текущего пользователя
 // ─────────────────────────────────────────────
 
+@example(#{
+  id: 1,
+  username: "nina",
+  name: "Нина Хабарова",
+  email: "khabarova.ninaa@gmail.com",
+  timeZone: "Europe/Moscow",
+  locale: "ru",
+  defaultScheduleId: 1,
+  createdAt: utcDateTime.fromISO("2026-01-15T09:00:00Z"),
+})
 model User {
   @visibility(Lifecycle.Read)
   id: int64;

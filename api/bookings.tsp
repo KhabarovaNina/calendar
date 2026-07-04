@@ -40,6 +40,30 @@ model Attendee {
   phone?: string;
 }
 
+@example(#{
+  id: 101,
+  uid: "bk_a1b2c3d4",
+  eventTypeId: 1,
+  status: BookingStatus.accepted,
+  title: "Интро-звонок: Нина и Алексей Смирнов",
+  start: utcDateTime.fromISO("2026-07-10T10:00:00Z"),
+  end: utcDateTime.fromISO("2026-07-10T10:15:00Z"),
+  organizer: #{
+    id: 1,
+    username: "nina",
+    name: "Нина Хабарова",
+    email: "khabarova.ninaa@gmail.com",
+    timeZone: "Europe/Moscow",
+    createdAt: utcDateTime.fromISO("2026-01-15T09:00:00Z"),
+  },
+  attendees: #[
+    #{ name: "Алексей Смирнов", email: "aleksey@example.com", timeZone: "Europe/Moscow" }
+  ],
+  location: #{ type: "integration", integration: "google-meet" },
+  meetingUrl: "https://meet.google.com/abc-defg-hij",
+  createdAt: utcDateTime.fromISO("2026-07-01T12:00:00Z"),
+  updatedAt: utcDateTime.fromISO("2026-07-01T12:00:00Z"),
+})
 model Booking {
   @visibility(Lifecycle.Read)
   id: int64;

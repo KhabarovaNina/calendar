@@ -5,8 +5,8 @@ WEB := web
 
 .DEFAULT_GOAL := help
 
-.PHONY: help install install-root install-web dev build preview typecheck \
-        spec docs clean
+.PHONY: help install install-root install-web dev mock gen build preview \
+        typecheck spec docs clean
 
 help: ## Показать список команд
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) \
@@ -20,10 +20,16 @@ install-root: ## Установить зависимости TypeSpec (коре�
 install-web: ## Установить зависимости фронтенда (web/)
 	cd $(WEB) && npm install
 
-dev: ## Запустить фронтенд в dev-режиме (http://localhost:5173)
-	cd $(WEB) && npm run dev
+dev: spec gen ## Запустить Prism (:4010) + фронтенд (:5173) одной командой
+	npm run dev
 
-build: ## Собрать фронтенд в web/dist
+mock: spec ## Запустить только Prism mock-сервер (http://localhost:4010)
+	npm run mock
+
+gen: ## Сгенерировать TS-типы фронтенда из OpenAPI
+	cd $(WEB) && npm run gen:api
+
+build: gen ## Собрать фронтенд в web/dist
 	cd $(WEB) && npm run build
 
 preview: ## Просмотр production-сборки фронтенда

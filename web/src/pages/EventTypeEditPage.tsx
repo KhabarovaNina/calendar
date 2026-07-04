@@ -1,63 +1,69 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { eventTypes, type EventLocation, type EventType } from "../api";
+import {
+  Anchor,
+  Button,
+  Card,
+  Group,
+  Loader,
+  NumberInput,
+  Select,
+  Stack,
+  Switch,
+  Text,
+  Textarea,
+  TextInput,
+  Title,
+} from "@mantine/core";
+import { notifications } from "@mantine/notifications";
+import { IconArrowLeft } from "@tabler/icons-react";
+import { eventTypesApi, type EventLocation, type EventType } from "../api/client";
 
 type LocationKind = "google-meet" | "zoom" | "ms-teams" | "link" | "address" | "phone";
 
-function locationKind(loc: EventLocation | undefined): LocationKind {
+function toKind(loc: EventLocation | undefined): LocationKind {
   if (!loc) return "google-meet";
   if (loc.type === "integration") return loc.integration === "daily" ? "google-meet" : loc.integration;
   if (loc.type === "link") return "link";
   if (loc.type === "address") return "address";
-  return loc.type === "phone" ? "phone" : "google-meet";
+  if (loc.type === "phone") return "phone";
+  return "google-meet";
 }
 
 function buildLocation(kind: LocationKind, value: string): EventLocation {
-  switch (kind) {
-    case "link":
-      return { type: "link", link: value || "https://example.com" };
-    case "address":
-      return { type: "address", address: value };
-    case "phone":
-      return { type: "phone", phone: value || undefined };
-    default:
-      return { type: "integration", integration: kind };
-  }
+  if (kind === "link") return { type: "link", link: value || "https://example.com" };
+  if (kind === "address") return { type: "address", address: value, displayPublicly: true };
+  if (kind === "phone") return { type: "phone", phone: value || undefined };
+  return { type: "integration", integration: kind };
 }
 
 export default function EventTypeEditPage() {
   const { id } = useParams();
   const navigate = useNavigate();
   const [et, setEt] = useState<EventType | null>(null);
-  const [saving, setSaving] = useState(false);
-  const [saved, setSaved] = useState(false);
-  const [error, setError] = useState("");
-
   const [locKind, setLocKind] = useState<LocationKind>("google-meet");
   const [locValue, setLocValue] = useState("");
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    eventTypes.get(Number(id)).then((data) => {
+    eventTypesApi.get(Number(id)).then((data) => {
       setEt(data);
       const loc = data.locations[0];
-      setLocKind(locationKind(loc));
+      setLocKind(toKind(loc));
       if (loc?.type === "link") setLocValue(loc.link);
       else if (loc?.type === "address") setLocValue(loc.address);
       else if (loc?.type === "phone") setLocValue(loc.phone ?? "");
     });
   }, [id]);
 
-  if (!et) return <div className="loading">Загрузка…</div>;
+  if (!et) return <Loader />;
 
-  const set = <K extends keyof EventType>(key: K, value: EventType[K]) =>
-    setEt({ ...et, [key]: value });
+  const set = <K extends keyof EventType>(key: K, value: EventType[K]) => setEt({ ...et, [key]: value });
 
-  const save = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const save = async () => {
     setSaving(true);
-    setError("");
     try {
-      await eventTypes.update(et.id, {
+      await eventTypesApi.update(et.id, {
         title: et.title,
         slug: et.slug,
         description: et.description,
@@ -71,191 +77,151 @@ export default function EventTypeEditPage() {
         afterEventBuffer: et.afterEventBuffer,
         bookingWindowDays: et.bookingWindowDays,
       });
-      setSaved(true);
-      setTimeout(() => setSaved(false), 2000);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Не удалось сохранить");
+      notifications.show({
+        color: "teal",
+        title: "Сохранено",
+        message: "Изменения отправлены на mock-сервер (Prism не персистит).",
+      });
+    } catch (e) {
+      notifications.show({ color: "red", title: "Ошибка", message: e instanceof Error ? e.message : "" });
     } finally {
       setSaving(false);
     }
   };
 
-  const needsLocValue = locKind === "link" || locKind === "address" || locKind === "phone";
+  const needsValue = locKind === "link" || locKind === "address" || locKind === "phone";
 
   return (
-    <>
-      <div className="page-header">
+    <Stack>
+      <Group justify="space-between" align="flex-start">
         <div>
-          <p className="subtitle">
-            <Link to="/event-types">← Типы событий</Link>
-          </p>
-          <h1>{et.title}</h1>
+          <Anchor component={Link} to="/event-types" size="sm">
+            <Group gap={4}>
+              <IconArrowLeft size={14} /> Типы событий
+            </Group>
+          </Anchor>
+          <Title order={2} mt={4}>
+            {et.title}
+          </Title>
         </div>
-        <button className="btn primary" onClick={save} disabled={saving}>
-          {saving ? "Сохранение…" : saved ? "✓ Сохранено" : "Сохранить"}
-        </button>
-      </div>
+        <Button onClick={save} loading={saving}>
+          Сохранить
+        </Button>
+      </Group>
 
-      {error && <div className="error-banner">{error}</div>}
+      <Card withBorder padding="lg">
+        <Stack>
+          <TextInput label="Название" value={et.title} onChange={(e) => set("title", e.currentTarget.value)} />
+          <TextInput
+            label="Слаг"
+            description={`/book/nina/${et.slug}`}
+            value={et.slug}
+            onChange={(e) => set("slug", e.currentTarget.value)}
+          />
+          <Textarea
+            label="Описание"
+            autosize
+            minRows={2}
+            value={et.description ?? ""}
+            onChange={(e) => set("description", e.currentTarget.value || undefined)}
+          />
 
-      <form className="card" style={{ padding: 24 }} onSubmit={save}>
-        <div className="form-grid">
-          <div className="field">
-            <label>Название</label>
-            <input required value={et.title} onChange={(e) => set("title", e.target.value)} />
-          </div>
-
-          <div className="field">
-            <label>Слаг</label>
-            <input
-              required
-              pattern="[a-z0-9]+(-[a-z0-9]+)*"
-              value={et.slug}
-              onChange={(e) => set("slug", e.target.value)}
+          <Group grow align="flex-start">
+            <NumberInput
+              label="Длительность, мин"
+              min={5}
+              max={1440}
+              value={et.lengthInMinutes}
+              onChange={(v) => set("lengthInMinutes", Number(v) || 0)}
             />
-            <div className="hint">/book/nina/{et.slug}</div>
-          </div>
-
-          <div className="field">
-            <label>Описание</label>
-            <textarea
-              rows={3}
-              value={et.description ?? ""}
-              onChange={(e) => set("description", e.target.value || undefined)}
+            <Select
+              label="Место проведения"
+              value={locKind}
+              onChange={(v) => setLocKind((v as LocationKind) ?? "google-meet")}
+              data={[
+                { value: "google-meet", label: "Google Meet" },
+                { value: "zoom", label: "Zoom" },
+                { value: "ms-teams", label: "Microsoft Teams" },
+                { value: "link", label: "Своя ссылка" },
+                { value: "address", label: "Личная встреча (адрес)" },
+                { value: "phone", label: "Телефонный звонок" },
+              ]}
             />
-          </div>
+          </Group>
 
-          <div className="field-row">
-            <div className="field">
-              <label>Длительность, мин</label>
-              <input
-                type="number"
-                min={5}
-                max={1440}
-                required
-                value={et.lengthInMinutes}
-                onChange={(e) => set("lengthInMinutes", Number(e.target.value))}
-              />
-            </div>
-            <div className="field">
-              <label>Место проведения</label>
-              <select value={locKind} onChange={(e) => setLocKind(e.target.value as LocationKind)}>
-                <option value="google-meet">Google Meet</option>
-                <option value="zoom">Zoom</option>
-                <option value="ms-teams">Microsoft Teams</option>
-                <option value="link">Своя ссылка</option>
-                <option value="address">Личная встреча (адрес)</option>
-                <option value="phone">Телефонный звонок</option>
-              </select>
-            </div>
-          </div>
-
-          {needsLocValue && (
-            <div className="field">
-              <label>
-                {locKind === "link" ? "Ссылка" : locKind === "address" ? "Адрес" : "Телефон"}
-              </label>
-              <input value={locValue} onChange={(e) => setLocValue(e.target.value)} />
-            </div>
+          {needsValue && (
+            <TextInput
+              label={locKind === "link" ? "Ссылка" : locKind === "address" ? "Адрес" : "Телефон"}
+              value={locValue}
+              onChange={(e) => setLocValue(e.currentTarget.value)}
+            />
           )}
 
-          <div className="field-row">
-            <div className="field">
-              <label>Мин. время до брони, мин</label>
-              <input
-                type="number"
-                min={0}
-                value={et.minimumBookingNotice}
-                onChange={(e) => set("minimumBookingNotice", Number(e.target.value))}
-              />
-              <div className="hint">Раньше этого срока слот забронировать нельзя</div>
-            </div>
-            <div className="field">
-              <label>Окно бронирования, дней</label>
-              <input
-                type="number"
-                min={1}
-                value={et.bookingWindowDays ?? 60}
-                onChange={(e) => set("bookingWindowDays", Number(e.target.value))}
-              />
-            </div>
-          </div>
-
-          <div className="field-row">
-            <div className="field">
-              <label>Буфер до, мин</label>
-              <input
-                type="number"
-                min={0}
-                value={et.beforeEventBuffer}
-                onChange={(e) => set("beforeEventBuffer", Number(e.target.value))}
-              />
-            </div>
-            <div className="field">
-              <label>Буфер после, мин</label>
-              <input
-                type="number"
-                min={0}
-                value={et.afterEventBuffer}
-                onChange={(e) => set("afterEventBuffer", Number(e.target.value))}
-              />
-            </div>
-          </div>
-
-          <label className="checkbox-field">
-            <input
-              type="checkbox"
-              checked={et.requiresConfirmation}
-              onChange={(e) => set("requiresConfirmation", e.target.checked)}
+          <Group grow align="flex-start">
+            <NumberInput
+              label="Мин. время до брони, мин"
+              min={0}
+              value={et.minimumBookingNotice}
+              onChange={(v) => set("minimumBookingNotice", Number(v) || 0)}
             />
-            <span>
-              <span className="label">Требует подтверждения</span>
-              <br />
-              <span className="hint">Бронь попадает в «Неподтверждённые», пока вы её не одобрите</span>
-            </span>
-          </label>
-
-          <label className="checkbox-field">
-            <input
-              type="checkbox"
-              checked={et.disableGuests}
-              onChange={(e) => set("disableGuests", e.target.checked)}
+            <NumberInput
+              label="Окно бронирования, дней"
+              min={1}
+              value={et.bookingWindowDays ?? 60}
+              onChange={(v) => set("bookingWindowDays", Number(v) || 60)}
             />
-            <span>
-              <span className="label">Запретить гостей</span>
-              <br />
-              <span className="hint">Участник не сможет добавить дополнительные email</span>
-            </span>
-          </label>
+          </Group>
 
-          <label className="checkbox-field">
-            <input
-              type="checkbox"
-              checked={et.hidden}
-              onChange={(e) => set("hidden", e.target.checked)}
+          <Group grow align="flex-start">
+            <NumberInput
+              label="Буфер до, мин"
+              min={0}
+              value={et.beforeEventBuffer}
+              onChange={(v) => set("beforeEventBuffer", Number(v) || 0)}
             />
-            <span>
-              <span className="label">Скрыть с публичной страницы</span>
-              <br />
-              <span className="hint">Событие останется доступно по прямой ссылке</span>
-            </span>
-          </label>
+            <NumberInput
+              label="Буфер после, мин"
+              min={0}
+              value={et.afterEventBuffer}
+              onChange={(v) => set("afterEventBuffer", Number(v) || 0)}
+            />
+          </Group>
 
-          <div>
-            <button
-              type="button"
-              className="btn danger"
+          <Switch
+            label="Требует подтверждения"
+            description="Бронь ожидает одобрения организатором"
+            checked={et.requiresConfirmation}
+            onChange={(e) => set("requiresConfirmation", e.currentTarget.checked)}
+          />
+          <Switch
+            label="Запретить гостей"
+            description="Участник не сможет добавить дополнительные email"
+            checked={et.disableGuests}
+            onChange={(e) => set("disableGuests", e.currentTarget.checked)}
+          />
+          <Switch
+            label="Скрыть с публичной страницы"
+            description="Событие останется доступно по прямой ссылке"
+            checked={et.hidden}
+            onChange={(e) => set("hidden", e.currentTarget.checked)}
+          />
+
+          <Group>
+            <Button
+              color="red"
+              variant="light"
               onClick={async () => {
                 if (!window.confirm(`Удалить «${et.title}»?`)) return;
-                await eventTypes.remove(et.id);
+                await eventTypesApi.remove(et.id);
+                notifications.show({ color: "blue", title: "Удалено", message: et.title });
                 navigate("/event-types");
               }}
             >
               Удалить тип события
-            </button>
-          </div>
-        </div>
-      </form>
-    </>
+            </Button>
+          </Group>
+        </Stack>
+      </Card>
+    </Stack>
   );
 }

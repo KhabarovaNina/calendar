@@ -17,7 +17,6 @@ export default function App() {
         <Route path="/availability" element={<AvailabilityPage />} />
         <Route path="/profile" element={<ProfilePage />} />
       </Route>
-
       <Route path="*" element={<Navigate to="/event-types" replace />} />
     </Routes>
   );
