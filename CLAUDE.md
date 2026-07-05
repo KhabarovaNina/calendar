@@ -60,6 +60,17 @@ Use the **Makefile** (it wraps the npm scripts; comments are in Russian). Run `m
 
 There is no linter configured, and the **frontend** has no test suite. `make typecheck` (`tsc --noEmit`) is the correctness check for frontend changes. The backend is plain JS with no typecheck — cover it with the `node:test` suites above and/or by running `make back` and hitting the endpoints.
 
+## Commits
+
+When the user asks to commit changes, write the message following the **Conventional Commits** standard: `type(scope): description`.
+
+- **type** — one of: `feat`, `fix`, `docs`, `style`, `refactor`, `perf`, `test`, `build`, `ci`, `chore`, `revert`.
+- **scope** (optional) — the affected area, preferably a domain term (`spec`, `server`, `web`, `slots`, `booking`, `auth`, `availability`, …).
+- **description** — imperative mood, lowercase, no trailing period. **Write commit messages in English** (even though the rest of the project is in Russian).
+- Commit body (optional) — after a blank line, explains *why*, not *what*. Mark breaking changes with `!` after the scope (e.g. `feat(server)!: ...`) or a `BREAKING CHANGE:` footer.
+
+Examples: `feat(server): add /slots endpoint`, `fix(web): correct timezone in bookings list`, `docs: update domain glossary`.
+
 ## Layout
 
 **Spec** (repo root):
