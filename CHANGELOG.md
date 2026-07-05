@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.2.1](https://github.com/KhabarovaNina/calendar/compare/v0.2.0...v0.2.1) (2026-07-05)
+
+
+### Documentation
+
+* document CI and release automation ([#12](https://github.com/KhabarovaNina/calendar/issues/12)) ([671199d](https://github.com/KhabarovaNina/calendar/commit/671199da19a2b56264e4c370799545e89c685a66))
+
+
+### Continuous Integration
+
+* auto-open PRs into main and add PR template ([#10](https://github.com/KhabarovaNina/calendar/issues/10)) ([908c4c3](https://github.com/KhabarovaNina/calendar/commit/908c4c30f2d036ad92843df19b599db5a5385e42))
+
 ## [0.2.0](https://github.com/KhabarovaNina/calendar/compare/v0.1.1...v0.2.0) (2026-07-05)
 
 
