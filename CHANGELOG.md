@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.2](https://github.com/KhabarovaNina/calendar/compare/v0.2.1...v0.2.2) (2026-07-05)
+
+
+### Continuous Integration
+
+* add Render.com deployment via Docker ([#14](https://github.com/KhabarovaNina/calendar/issues/14)) ([5ee5aea](https://github.com/KhabarovaNina/calendar/commit/5ee5aeafc39215ab90e67ff04273dae13840af8e))
+
 ## [0.2.1](https://github.com/KhabarovaNina/calendar/compare/v0.2.0...v0.2.1) (2026-07-05)
 
 
