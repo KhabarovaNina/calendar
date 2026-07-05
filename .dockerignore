@@ -1,0 +1,19 @@
+# Зависимости и артефакты ставятся/собираются внутри образа.
+node_modules
+web/node_modules
+server/node_modules
+web/dist
+tsp-output
+
+# Локальная БД SQLite не должна попадать в образ.
+server/data.db
+server/data.db-shm
+server/data.db-wal
+
+# Прочее
+.git
+.github
+.claude
+.agents
+*.md
+docs
