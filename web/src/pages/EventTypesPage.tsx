@@ -123,6 +123,14 @@ export default function EventTypesPage() {
               </div>
 
               <Group gap={4} wrap="nowrap">
+                <Tooltip label={et.hidden ? "Скрыто" : "Видно"}>
+                  <Switch
+                    checked={!et.hidden}
+                    onChange={() => toggleHidden(et)}
+                    size="sm"
+                    aria-label="Видимость"
+                  />
+                </Tooltip>
                 <Tooltip label="Открыть страницу бронирования">
                   <ActionIcon
                     variant="subtle"
@@ -143,14 +151,6 @@ export default function EventTypesPage() {
                     </Tooltip>
                   )}
                 </CopyButton>
-                <Tooltip label={et.hidden ? "Скрыто" : "Видно"}>
-                  <Switch
-                    checked={!et.hidden}
-                    onChange={() => toggleHidden(et)}
-                    size="sm"
-                    aria-label="Видимость"
-                  />
-                </Tooltip>
                 <Menu position="bottom-end" withinPortal>
                   <Menu.Target>
                     <ActionIcon variant="subtle" color="gray">
