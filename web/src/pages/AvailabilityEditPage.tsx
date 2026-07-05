@@ -34,6 +34,7 @@ import {
   type DateOverride,
   type Schedule,
 } from "../api/client";
+import { confirm } from "../components/confirm";
 
 type Weekday = AvailabilityRule["days"][number];
 
@@ -182,7 +183,13 @@ export default function AvailabilityEditPage() {
   };
 
   const removeSchedule = async () => {
-    if (!window.confirm(`Удалить расписание «${name}»?`)) return;
+    const ok = await confirm({
+      title: "Удалить расписание?",
+      message: `Расписание «${name}» будет удалено безвозвратно.`,
+      confirmLabel: "Удалить",
+      danger: true,
+    });
+    if (!ok) return;
     await availabilityApi.remove(schedule.id);
     notifications.show({ color: "blue", title: "Удалено", message: name });
     navigate("/availability");

@@ -8,7 +8,7 @@ SERVER := server
 
 .PHONY: help install install-root install-web install-server dev dev-mock \
         back back-seed back-reset mock gen build preview \
-        typecheck spec docs clean
+        typecheck test spec docs clean
 
 help: ## Показать список команд
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) \
@@ -54,6 +54,9 @@ preview: ## Просмотр production-сборки фронтенда
 
 typecheck: ## Проверить типы фронтенда
 	cd $(WEB) && npm run typecheck
+
+test: ## Запустить тесты бэкенда (node:test)
+	cd $(SERVER) && npm test
 
 spec: ## Скомпилировать TypeSpec в OpenAPI (tsp-output/schema)
 	npm run docs:build

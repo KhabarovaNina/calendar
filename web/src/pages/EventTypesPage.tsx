@@ -33,6 +33,7 @@ import { eventTypesApi, type EventType } from "../api/client";
 import { useResource } from "../api/useApi";
 import { useCurrentUser } from "../api/user";
 import { fmtPrice, slugify } from "../lib/format";
+import { confirm } from "../components/confirm";
 import classes from "./EventTypesPage.module.css";
 
 export default function EventTypesPage() {
@@ -56,7 +57,13 @@ export default function EventTypesPage() {
   };
 
   const remove = async (et: EventType) => {
-    if (!window.confirm(`Удалить «${et.title}»? Связанные брони тоже будут удалены.`)) return;
+    const ok = await confirm({
+      title: "Удалить тип события?",
+      message: `«${et.title}» будет удалён безвозвратно. Связанные брони тоже будут удалены.`,
+      confirmLabel: "Удалить",
+      danger: true,
+    });
+    if (!ok) return;
     try {
       await eventTypesApi.remove(et.id);
       notifications.show({ color: "blue", title: "Удалено", message: et.title });

@@ -13,15 +13,18 @@ import "./global.css";
 
 import App from "./App";
 import { theme } from "./theme";
+import { ConfirmProvider } from "./components/confirm";
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
     <MantineProvider theme={theme} defaultColorScheme="light">
       <DatesProvider settings={{ locale: "ru", firstDayOfWeek: 1 }}>
         <Notifications position="top-right" />
-        <BrowserRouter>
-          <App />
-        </BrowserRouter>
+        <ConfirmProvider>
+          <BrowserRouter>
+            <App />
+          </BrowserRouter>
+        </ConfirmProvider>
       </DatesProvider>
     </MantineProvider>
   </React.StrictMode>,

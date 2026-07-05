@@ -37,6 +37,7 @@ import {
   type Schedule,
   type Slot,
 } from "../api/client";
+import { confirm } from "../components/confirm";
 
 type LocationKind = "google-meet" | "zoom" | "ms-teams" | "link" | "address" | "phone";
 
@@ -462,7 +463,13 @@ export default function EventTypeEditPage() {
           color="red"
           variant="light"
           onClick={async () => {
-            if (!window.confirm(`Удалить «${et.title}»? Связанные брони тоже будут удалены.`)) return;
+            const ok = await confirm({
+              title: "Удалить тип события?",
+              message: `«${et.title}» будет удалён безвозвратно. Связанные брони тоже будут удалены.`,
+              confirmLabel: "Удалить",
+              danger: true,
+            });
+            if (!ok) return;
             try {
               await eventTypesApi.remove(et.id);
               notifications.show({ color: "blue", title: "Удалено", message: et.title });

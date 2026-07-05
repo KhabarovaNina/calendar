@@ -23,6 +23,7 @@ import {
   IconStar,
 } from "@tabler/icons-react";
 import { availabilityApi, type AvailabilityRule, type Schedule } from "../api/client";
+import { confirm } from "../components/confirm";
 import { useResource } from "../api/useApi";
 import classes from "./EventTypesPage.module.css";
 
@@ -103,7 +104,13 @@ export default function AvailabilityPage() {
       notifications.show({ color: "red", title: "Нельзя удалить", message: "Это расписание по умолчанию." });
       return;
     }
-    if (!window.confirm(`Удалить расписание «${s.name}»?`)) return;
+    const ok = await confirm({
+      title: "Удалить расписание?",
+      message: `Расписание «${s.name}» будет удалено безвозвратно.`,
+      confirmLabel: "Удалить",
+      danger: true,
+    });
+    if (!ok) return;
     await availabilityApi.remove(s.id);
     notifications.show({ color: "blue", title: "Удалено", message: s.name });
     reload();
