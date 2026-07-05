@@ -426,13 +426,13 @@ export interface components {
          *       "uid": "bk_a1b2c3d4",
          *       "eventTypeId": 1,
          *       "status": "accepted",
-         *       "title": "Интро-звонок: Нина и Алексей Смирнов",
+         *       "title": "Интро-звонок: Nina и Алексей Смирнов",
          *       "start": "2026-07-10T10:00:00Z",
          *       "end": "2026-07-10T10:15:00Z",
          *       "organizer": {
          *         "id": 1,
          *         "username": "nina",
-         *         "name": "Нина Хабарова",
+         *         "name": "Nina",
          *         "email": "nina@dev.com",
          *         "timeZone": "Europe/Moscow",
          *         "createdAt": "2026-01-15T09:00:00Z"
@@ -901,7 +901,7 @@ export interface components {
          * @example {
          *       "id": 1,
          *       "username": "nina",
-         *       "name": "Нина Хабарова",
+         *       "name": "Nina",
          *       "timeZone": "Europe/Moscow",
          *       "eventTypes": []
          *     }
@@ -1099,7 +1099,7 @@ export interface components {
          * @example {
          *       "id": 1,
          *       "username": "nina",
-         *       "name": "Нина Хабарова",
+         *       "name": "Nina",
          *       "email": "nina@dev.com",
          *       "timeZone": "Europe/Moscow",
          *       "locale": "ru",
@@ -1130,7 +1130,7 @@ export interface components {
         /**
          * @example {
          *       "username": "nina",
-         *       "name": "Нина Хабарова",
+         *       "name": "Nina",
          *       "email": "nina@dev.com",
          *       "timeZone": "Europe/Moscow",
          *       "locale": "ru",

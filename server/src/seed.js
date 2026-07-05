@@ -1,12 +1,22 @@
 // Наполнение пустой базы демо-данными. Значения повторяют блоки @example из
 // TypeSpec-спеки (api/*.tsp), чтобы поведение совпадало с прежним Prism-моком.
 // Сид идемпотентен: если в users уже есть строки — ничего не делает.
+//
+// Демо-контент (типы событий и брони-примеры) сидируется ТОЛЬКО вне production:
+// на боевом стенде (Render, NODE_ENV=production) база остаётся чистой — только
+// организатор и его расписания, а типы событий и брони создаёт сам пользователь.
+// Локально и в тестах демо-набор нужен (на нём держится e2e-тест booking-flow).
+// Поведение можно переопределить переменной SEED_DEMO=true|false.
 
 import { db, initSchema } from "./db.js";
 import { hashPassword } from "./auth.js";
 
 // Демо-пароль сид-пользователя `nina` (для входа через POST /auth/login).
 export const SEED_PASSWORD = "password123";
+
+const SEED_DEMO = process.env.SEED_DEMO
+  ? process.env.SEED_DEMO === "true"
+  : process.env.NODE_ENV !== "production";
 
 export function seed() {
   initSchema();
@@ -24,7 +34,7 @@ export function seed() {
     ).run({
       id: 1,
       username: "nina",
-      name: "Нина Хабарова",
+      name: "Nina",
       email: "nina@dev.com",
       passwordHash: hashPassword(SEED_PASSWORD),
       timeZone: "Europe/Moscow",
@@ -73,7 +83,14 @@ export function seed() {
       ownerId: 1,
     });
 
-    // ── Типы событий ──
+    // Синхронизируем автоинкремент расписаний, чтобы новые записи не
+    // конфликтовали с явно заданными id сида.
+    db.prepare("UPDATE sqlite_sequence SET seq = 100 WHERE name = 'schedules'").run();
+
+    // На боевом стенде демо-контент не создаём — база остаётся чистой.
+    if (!SEED_DEMO) return;
+
+    // ── Типы событий (демо) ──
     const insertEvent = db.prepare(
       `INSERT INTO event_types (
         id, title, slug, description, lengthInMinutes, lengthInMinutesOptions, locations,
@@ -151,7 +168,7 @@ export function seed() {
       updatedAt: now,
     });
 
-    // ── Бронирования ──
+    // ── Бронирования (демо) ──
     const insertBooking = db.prepare(
       `INSERT INTO bookings (
         id, uid, eventTypeId, status, title, start, end, organizerId, attendees, guests,
@@ -170,7 +187,7 @@ export function seed() {
       uid: "bk_a1b2c3d4",
       eventTypeId: 1,
       status: "accepted",
-      title: "Интро-звонок: Нина и Алексей Смирнов",
+      title: "Интро-звонок: Nina и Алексей Смирнов",
       start: "2026-07-10T10:00:00Z",
       end: "2026-07-10T10:15:00Z",
       organizerId: 1,
@@ -193,7 +210,7 @@ export function seed() {
       uid: "bk_e5f6g7h8",
       eventTypeId: 2,
       status: "pending",
-      title: "Консультация 30 минут: Нина и Мария Иванова",
+      title: "Консультация 30 минут: Nina и Мария Иванова",
       start: "2026-07-12T13:00:00Z",
       end: "2026-07-12T13:30:00Z",
       organizerId: 1,
@@ -216,7 +233,7 @@ export function seed() {
       uid: "bk_i9j0k1l2",
       eventTypeId: 1,
       status: "accepted",
-      title: "Интро-звонок: Нина и Пётр Кузнецов",
+      title: "Интро-звонок: Nina и Пётр Кузнецов",
       start: "2026-06-20T08:00:00Z",
       end: "2026-06-20T08:15:00Z",
       organizerId: 1,
@@ -239,7 +256,7 @@ export function seed() {
       uid: "bk_m3n4o5p6",
       eventTypeId: 1,
       status: "cancelled",
-      title: "Интро-звонок: Нина и Ольга Соколова",
+      title: "Интро-звонок: Nina и Ольга Соколова",
       start: "2026-06-25T14:00:00Z",
       end: "2026-06-25T14:15:00Z",
       organizerId: 1,
@@ -259,7 +276,6 @@ export function seed() {
     // Синхронизируем автоинкремент, чтобы новые записи не конфликтовали с сидом.
     db.prepare("UPDATE sqlite_sequence SET seq = 1000 WHERE name = 'bookings'").run();
     db.prepare("UPDATE sqlite_sequence SET seq = 100 WHERE name = 'event_types'").run();
-    db.prepare("UPDATE sqlite_sequence SET seq = 100 WHERE name = 'schedules'").run();
   });
 
   tx();
