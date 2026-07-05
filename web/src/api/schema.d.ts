@@ -433,7 +433,7 @@ export interface components {
          *         "id": 1,
          *         "username": "nina",
          *         "name": "Нина Хабарова",
-         *         "email": "khabarova.ninaa@gmail.com",
+         *         "email": "nina@dev.com",
          *         "timeZone": "Europe/Moscow",
          *         "createdAt": "2026-01-15T09:00:00Z"
          *       },
@@ -1100,7 +1100,7 @@ export interface components {
          *       "id": 1,
          *       "username": "nina",
          *       "name": "Нина Хабарова",
-         *       "email": "khabarova.ninaa@gmail.com",
+         *       "email": "nina@dev.com",
          *       "timeZone": "Europe/Moscow",
          *       "locale": "ru",
          *       "defaultScheduleId": 1,
@@ -1131,7 +1131,7 @@ export interface components {
          * @example {
          *       "username": "nina",
          *       "name": "Нина Хабарова",
-         *       "email": "khabarova.ninaa@gmail.com",
+         *       "email": "nina@dev.com",
          *       "timeZone": "Europe/Moscow",
          *       "locale": "ru",
          *       "defaultScheduleId": 1
