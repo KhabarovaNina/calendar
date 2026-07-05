@@ -12,7 +12,7 @@ namespace CalendarService;
 @example(#{
   id: 1,
   username: "nina",
-  name: "Нина Хабарова",
+  name: "Nina",
   email: "nina@dev.com",
   timeZone: "Europe/Moscow",
   locale: "ru",

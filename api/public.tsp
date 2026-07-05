@@ -16,7 +16,7 @@ namespace CalendarService;
 @example(#{
   id: 1,
   username: "nina",
-  name: "Нина Хабарова",
+  name: "Nina",
   timeZone: "Europe/Moscow",
   eventTypes: #[],
 })
