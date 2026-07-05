@@ -71,6 +71,16 @@ When the user asks to commit changes, write the message following the **Conventi
 
 Examples: `feat(server): add /slots endpoint`, `fix(web): correct timezone in bookings list`, `docs: update domain glossary`.
 
+## CI и релизы
+
+GitHub Actions в `.github/workflows/` (все запускаются автоматически):
+
+- **CI** (`ci.yml`) — на push в любую ветку и на PR в `main`/`dev`. Ставит зависимости всех трёх частей по lock-файлам, компилирует спеку (`make spec`) и типы (`make gen`), **проверяет дрифт** сгенерированного `web/src/api/schema.d.ts` (падает, если забыли `make gen` после правки `.tsp`), затем `make typecheck`, `make build`, `make test`. Push-триггер расширен до всех веток, чтобы чек привязывался к SHA и был виден в авто-создаваемых PR.
+- **Auto PR** (`auto-pr.yml`) — на push в фичеветку (кроме `main`/`dev`/`release-please--**`) сам открывает PR в `main` с описанием из коммитов (`gh pr create --fill`); если PR уже открыт — пропускает.
+- **Release Please** (`release-please.yml`) — на push в `main` ведёт release-PR: по Conventional Commits считает версию (`fix`→patch, `feat`→minor, `!`/`BREAKING`→major), обновляет `CHANGELOG.md` и бампит версию во всех трёх `package.json` в lockstep (`extra-files` в `release-please-config.json`). Мёрж release-PR создаёт тег и GitHub Release. Требует включённого «Allow GitHub Actions to create and approve pull requests» в настройках репозитория.
+
+Шаблон описания PR — `.github/pull_request_template.md` (для PR, создаваемых вручную через UI).
+
 ## Layout
 
 **Spec** (repo root):
