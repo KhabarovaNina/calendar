@@ -12,6 +12,26 @@ import OrganizerPage from "./pages/public/OrganizerPage";
 import BookingPage from "./pages/public/BookingPage";
 import { UserProvider, useCurrentUser } from "./api/user";
 
+/**
+ * Обёртка публичных страниц бронирования. Если организатор авторизован —
+ * показываем тот же shell с боковым меню (можно вернуться в кабинет с любой
+ * страницы бронирования/подтверждения). Анонимный посетитель видит чистую
+ * страницу без приватной навигации организатора.
+ */
+function PublicLayout() {
+  const { data: user, loading } = useCurrentUser();
+
+  if (loading) {
+    return (
+      <Center mih="100vh">
+        <Loader />
+      </Center>
+    );
+  }
+
+  return user ? <Layout /> : <Outlet />;
+}
+
 /** Guard кабинета организатора: без активной сессии — экран входа. */
 function RequireAuth() {
   const { data: user, loading, error, reload } = useCurrentUser();
@@ -36,9 +56,13 @@ export default function App() {
   return (
     <UserProvider>
       <Routes>
-        {/* Публичные страницы бронирования — без авторизации (см. docs/adr/0001). */}
-        <Route path="/book/:username" element={<OrganizerPage />} />
-        <Route path="/book/:username/:slug" element={<BookingPage />} />
+        {/* Публичные страницы бронирования — без авторизации (см. docs/adr/0001).
+            Обёрнуты в PublicLayout: организатор видит боковое меню и может
+            вернуться в кабинет, посетитель — чистую страницу. */}
+        <Route element={<PublicLayout />}>
+          <Route path="/book/:username" element={<OrganizerPage />} />
+          <Route path="/book/:username/:slug" element={<BookingPage />} />
+        </Route>
 
         {/* Кабинет организатора — за авторизацией. */}
         <Route element={<RequireAuth />}>
