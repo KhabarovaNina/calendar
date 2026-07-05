@@ -8,8 +8,8 @@ export interface Resource<T> {
 }
 
 /**
- * Простейшая загрузка данных из Prism: вызывает `fn` при монтировании
- * и при изменении `deps`, плюс по `reload()`. Без кэша (чистый Prism).
+ * Простейшая загрузка данных: вызывает `fn` при монтировании
+ * и при изменении `deps`, плюс по `reload()`. Без кэша.
  */
 export function useResource<T>(fn: () => Promise<T>, deps: unknown[] = []): Resource<T> {
   const [data, setData] = useState<T>();

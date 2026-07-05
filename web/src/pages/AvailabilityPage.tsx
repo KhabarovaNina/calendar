@@ -1,117 +1,112 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import {
+  ActionIcon,
+  Badge,
   Button,
-  Card,
   Group,
   Loader,
-  Select,
+  Menu,
+  Modal,
   Stack,
-  Switch,
   Text,
+  TextInput,
   Title,
 } from "@mantine/core";
-import { TimeInput } from "@mantine/dates";
+import { useForm } from "@mantine/form";
 import { notifications } from "@mantine/notifications";
+import {
+  IconDotsVertical,
+  IconCopy,
+  IconTrash,
+  IconPlus,
+  IconStar,
+} from "@tabler/icons-react";
 import { availabilityApi, type AvailabilityRule, type Schedule } from "../api/client";
+import { useResource } from "../api/useApi";
+import classes from "./EventTypesPage.module.css";
 
 type Weekday = AvailabilityRule["days"][number];
 
-const DAYS: { key: Weekday; label: string }[] = [
-  { key: "monday", label: "Понедельник" },
-  { key: "tuesday", label: "Вторник" },
-  { key: "wednesday", label: "Среда" },
-  { key: "thursday", label: "Четверг" },
-  { key: "friday", label: "Пятница" },
-  { key: "saturday", label: "Суббота" },
-  { key: "sunday", label: "Воскресенье" },
+const SHORT: Record<Weekday, string> = {
+  monday: "Пн",
+  tuesday: "Вт",
+  wednesday: "Ср",
+  thursday: "Чт",
+  friday: "Пт",
+  saturday: "Сб",
+  sunday: "Вс",
+};
+const ORDER: Weekday[] = [
+  "monday",
+  "tuesday",
+  "wednesday",
+  "thursday",
+  "friday",
+  "saturday",
+  "sunday",
 ];
 
-const TZ = [
-  "Europe/Moscow",
-  "Europe/Kaliningrad",
-  "Asia/Yekaterinburg",
-  "Asia/Novosibirsk",
-  "Asia/Vladivostok",
-  "Europe/London",
-  "UTC",
-];
+const hhmm = (t: string) => t.slice(0, 5);
 
-interface DayState {
-  enabled: boolean;
-  start: string;
-  end: string;
-}
+/** Короткая сводка расписания: «Пн–Пт · 09:00–18:00». */
+function summarize(s: Schedule): string {
+  const active = ORDER.filter((d) => s.availability?.some((r) => r.days.includes(d)));
+  if (active.length === 0) return "Нет рабочих часов";
 
-const hhmm = (t: string) => t.slice(0, 5); // "09:00:00" → "09:00"
-
-function scheduleToDays(schedule: Schedule): Record<Weekday, DayState> {
-  const result = {} as Record<Weekday, DayState>;
-  for (const { key } of DAYS) result[key] = { enabled: false, start: "09:00", end: "18:00" };
-  for (const rule of schedule.availability) {
-    for (const day of rule.days) {
-      result[day] = { enabled: true, start: hhmm(rule.startTime), end: hhmm(rule.endTime) };
+  // Свернём подряд идущие дни в диапазоны.
+  const groups: string[] = [];
+  let runStart = active[0];
+  let prev = active[0];
+  for (let i = 1; i <= active.length; i++) {
+    const cur = active[i];
+    const contiguous = cur && ORDER.indexOf(cur) === ORDER.indexOf(prev) + 1;
+    if (!contiguous) {
+      groups.push(runStart === prev ? SHORT[runStart] : `${SHORT[runStart]}–${SHORT[prev]}`);
+      if (cur) runStart = cur;
     }
+    if (cur) prev = cur;
   }
-  return result;
-}
 
-/** Группируем дни с одинаковым интервалом в правила AvailabilityRule[] */
-function daysToRules(days: Record<Weekday, DayState>): AvailabilityRule[] {
-  const byInterval = new Map<string, Weekday[]>();
-  for (const { key } of DAYS) {
-    const d = days[key];
-    if (!d.enabled) continue;
-    const k = `${d.start}-${d.end}`;
-    if (!byInterval.has(k)) byInterval.set(k, []);
-    byInterval.get(k)!.push(key);
-  }
-  return [...byInterval.entries()].map(([k, dayList]) => {
-    const [start, end] = k.split("-");
-    return { days: dayList, startTime: `${start}:00`, endTime: `${end}:00` };
-  });
+  const first = s.availability?.[0];
+  const time = first ? `${hhmm(first.startTime)}–${hhmm(first.endTime)}` : "";
+  return `${groups.join(", ")}${time ? ` · ${time}` : ""}`;
 }
 
 export default function AvailabilityPage() {
-  const [schedule, setSchedule] = useState<Schedule | null>(null);
-  const [days, setDays] = useState<Record<Weekday, DayState> | null>(null);
-  const [tz, setTz] = useState("Europe/Moscow");
-  const [saving, setSaving] = useState(false);
+  const { data, loading, error, reload } = useResource(() => availabilityApi.list(), []);
+  const [createOpen, setCreateOpen] = useState(false);
+  const navigate = useNavigate();
 
-  useEffect(() => {
-    availabilityApi.list().then((page) => {
-      const s = page.items[0];
-      if (s) {
-        setSchedule(s);
-        setDays(scheduleToDays(s));
-        setTz(s.timeZone);
-      }
+  const setDefault = async (s: Schedule) => {
+    const others = (data?.items ?? []).filter((x) => x.id !== s.id && x.isDefault);
+    await Promise.all(others.map((x) => availabilityApi.update(x.id, { isDefault: false })));
+    await availabilityApi.update(s.id, { isDefault: true });
+    notifications.show({ color: "teal", title: "Расписание по умолчанию", message: s.name });
+    reload();
+  };
+
+  const duplicate = async (s: Schedule) => {
+    await availabilityApi.create({
+      name: `${s.name} (копия)`,
+      timeZone: s.timeZone,
+      availability: s.availability,
+      overrides: s.overrides,
+      isDefault: false,
     });
-  }, []);
+    notifications.show({ color: "blue", title: "Скопировано", message: s.name });
+    reload();
+  };
 
-  if (!schedule || !days) return <Loader />;
-
-  const setDay = (key: Weekday, patch: Partial<DayState>) =>
-    setDays({ ...days, [key]: { ...days[key], ...patch } });
-
-  const save = async () => {
-    setSaving(true);
-    try {
-      await availabilityApi.update(schedule.id, {
-        name: schedule.name,
-        timeZone: tz,
-        availability: daysToRules(days),
-        isDefault: schedule.isDefault,
-      });
-      notifications.show({
-        color: "teal",
-        title: "Сохранено",
-        message: "Расписание отправлено на mock-сервер (Prism не персистит).",
-      });
-    } catch (e) {
-      notifications.show({ color: "red", title: "Ошибка", message: e instanceof Error ? e.message : "" });
-    } finally {
-      setSaving(false);
+  const remove = async (s: Schedule) => {
+    if (s.isDefault) {
+      notifications.show({ color: "red", title: "Нельзя удалить", message: "Это расписание по умолчанию." });
+      return;
     }
+    if (!window.confirm(`Удалить расписание «${s.name}»?`)) return;
+    await availabilityApi.remove(s.id);
+    notifications.show({ color: "blue", title: "Удалено", message: s.name });
+    reload();
   };
 
   return (
@@ -119,58 +114,138 @@ export default function AvailabilityPage() {
       <Group justify="space-between" align="flex-start">
         <div>
           <Title order={2}>Доступность</Title>
-          <Text c="dimmed">Часы, в которые вас можно забронировать · {schedule.name}</Text>
+          <Text c="dimmed">Расписания часов, в которые вас можно забронировать.</Text>
         </div>
-        <Button onClick={save} loading={saving}>
-          Сохранить
+        <Button leftSection={<IconPlus size={16} />} onClick={() => setCreateOpen(true)}>
+          Создать
         </Button>
       </Group>
 
-      <Card withBorder padding="lg">
-        <Select
-          label="Таймзона"
-          data={TZ}
-          value={tz}
-          onChange={(v) => setTz(v ?? tz)}
-          mb="md"
-          maw={280}
-        />
+      {loading && <Loader />}
+      {error && <Text c="red">Ошибка загрузки: {error}</Text>}
 
-        <Stack gap="xs">
-          {DAYS.map(({ key, label }) => {
-            const d = days[key];
-            return (
-              <Group key={key} gap="md" wrap="nowrap">
-                <Switch
-                  label={label}
-                  checked={d.enabled}
-                  onChange={(e) => setDay(key, { enabled: e.currentTarget.checked })}
-                  styles={{ body: { width: 160 } }}
-                />
-                {d.enabled ? (
-                  <Group gap="xs" wrap="nowrap">
-                    <TimeInput
-                      value={d.start}
-                      onChange={(e) => setDay(key, { start: e.currentTarget.value })}
-                      w={110}
-                    />
-                    <Text c="dimmed">—</Text>
-                    <TimeInput
-                      value={d.end}
-                      onChange={(e) => setDay(key, { end: e.currentTarget.value })}
-                      w={110}
-                    />
-                  </Group>
-                ) : (
-                  <Text c="dimmed" size="sm">
-                    Недоступно
+      {data && (
+        <div className={classes.list}>
+          {data.items.length === 0 && <div className={classes.empty}>Пока нет ни одного расписания.</div>}
+          {data.items.map((s) => (
+            <div key={s.id} className={classes.row}>
+              <div style={{ minWidth: 0, flex: 1 }}>
+                <Group gap={8} wrap="nowrap">
+                  <Text fw={600} component={Link} to={`/availability/${s.id}`} className={classes.title} truncate>
+                    {s.name}
                   </Text>
-                )}
-              </Group>
-            );
-          })}
-        </Stack>
-      </Card>
+                  {s.isDefault && (
+                    <Badge size="sm" variant="light" color="teal">
+                      По умолчанию
+                    </Badge>
+                  )}
+                </Group>
+                <Text c="dimmed" size="sm" mt={2}>
+                  {summarize(s)}
+                </Text>
+                <Text c="dimmed" size="xs" mt={2}>
+                  {s.timeZone}
+                </Text>
+              </div>
+
+              <Menu position="bottom-end" withinPortal>
+                <Menu.Target>
+                  <ActionIcon variant="subtle" color="gray">
+                    <IconDotsVertical size={18} />
+                  </ActionIcon>
+                </Menu.Target>
+                <Menu.Dropdown>
+                  {!s.isDefault && (
+                    <Menu.Item leftSection={<IconStar size={16} />} onClick={() => setDefault(s)}>
+                      Сделать по умолчанию
+                    </Menu.Item>
+                  )}
+                  <Menu.Item leftSection={<IconCopy size={16} />} onClick={() => duplicate(s)}>
+                    Дублировать
+                  </Menu.Item>
+                  <Menu.Divider />
+                  <Menu.Item color="red" leftSection={<IconTrash size={16} />} onClick={() => remove(s)}>
+                    Удалить
+                  </Menu.Item>
+                </Menu.Dropdown>
+              </Menu>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <CreateModal
+        opened={createOpen}
+        onClose={() => setCreateOpen(false)}
+        onCreated={(s) => {
+          setCreateOpen(false);
+          notifications.show({ color: "teal", title: "Создано", message: s.name });
+          navigate(`/availability/${s.id}`);
+        }}
+      />
     </Stack>
+  );
+}
+
+function CreateModal({
+  opened,
+  onClose,
+  onCreated,
+}: {
+  opened: boolean;
+  onClose: () => void;
+  onCreated: (s: Schedule) => void;
+}) {
+  const form = useForm({
+    initialValues: { name: "" },
+    validate: { name: (v) => (v.trim() ? null : "Укажите название") },
+  });
+  const [saving, setSaving] = useState(false);
+
+  const submit = form.onSubmit(async (values) => {
+    setSaving(true);
+    try {
+      const s = await availabilityApi.create({
+        name: values.name,
+        timeZone: "Europe/Moscow",
+        availability: [
+          {
+            days: ["monday", "tuesday", "wednesday", "thursday", "friday"],
+            startTime: "09:00:00",
+            endTime: "18:00:00",
+          },
+        ],
+        isDefault: false,
+      });
+      onCreated(s);
+      form.reset();
+    } catch (e) {
+      notifications.show({ color: "red", title: "Ошибка", message: e instanceof Error ? e.message : "" });
+    } finally {
+      setSaving(false);
+    }
+  });
+
+  return (
+    <Modal opened={opened} onClose={onClose} title="Новое расписание" centered>
+      <form onSubmit={submit}>
+        <Stack>
+          <TextInput
+            label="Название"
+            placeholder="Например: Рабочие часы"
+            data-autofocus
+            {...form.getInputProps("name")}
+          />
+          <Group justify="flex-end">
+            <Button variant="default" onClick={onClose}>
+              Отмена
+            </Button>
+            <Button type="submit" loading={saving}>
+              Создать
+            </Button>
+          </Group>
+        </Stack>
+      </form>
+    </Modal>
   );
 }

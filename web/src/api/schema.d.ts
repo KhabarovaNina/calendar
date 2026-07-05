@@ -4,6 +4,57 @@
  */
 
 export interface paths {
+    "/auth/login": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Войти: создаёт сессию и ставит httpOnly-cookie */
+        post: operations["Auth_login"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/logout": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Выйти: уничтожает сессию */
+        post: operations["Auth_logout"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/auth/register": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Зарегистрироваться: создаёт пользователя, дефолтное расписание и сессию */
+        post: operations["Auth_register"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/availability": {
         parameters: {
             query?: never;
@@ -214,6 +265,40 @@ export interface paths {
         head?: never;
         /** @description Обновить профиль */
         patch: operations["Me_update"];
+        trace?: never;
+    };
+    "/public/{username}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Публичный профиль организатора по username + его открытые события */
+        get: operations["Public_organizer"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/public/{username}/{slug}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Один видимый тип события организатора по слагу (для страницы бронирования) */
+        get: operations["Public_eventType"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/slots": {
@@ -786,6 +871,11 @@ export interface components {
             /** Format: uri */
             link: string;
         };
+        /** @description Вход по email и паролю */
+        LoginRequest: {
+            email: string;
+            password: string;
+        };
         /** @description Телефонный звонок: организатор звонит участнику */
         PhoneLocation: {
             /**
@@ -805,6 +895,28 @@ export interface components {
             type: "phone";
             /** @description Номер организатора; если не задан — берётся номер участника */
             phone?: string;
+        };
+        /**
+         * @description Публичный профиль организатора и его открытые события
+         * @example {
+         *       "id": 1,
+         *       "username": "nina",
+         *       "name": "Нина Хабарова",
+         *       "timeZone": "Europe/Moscow",
+         *       "eventTypes": []
+         *     }
+         */
+        PublicOrganizer: {
+            /** Format: int64 */
+            id: number;
+            /** @description Публичный username из ссылки бронирования */
+            username: components["schemas"]["Slug"];
+            name: string;
+            timeZone: components["schemas"]["TimeZone"];
+            /** Format: uri */
+            avatarUrl?: string;
+            /** @description Видимые (не скрытые) типы событий организатора */
+            eventTypes: components["schemas"]["EventType"][];
         };
         /** @description Периодичность повторяющегося события */
         Recurrence: {
@@ -833,6 +945,17 @@ export interface components {
              * @description Максимальное число повторений
              */
             count?: number;
+        };
+        /** @description Регистрация нового организатора */
+        RegisterRequest: {
+            name: string;
+            email: string;
+            password: string;
+            timeZone: components["schemas"]["TimeZone"];
+            /** @description Публичный username из ссылки бронирования */
+            username: components["schemas"]["Slug"];
+            /** @description Локаль интерфейса, например `ru` */
+            locale?: string;
         };
         RejectBookingRequest: {
             reason?: string;
@@ -1040,6 +1163,99 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    Auth_login: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["LoginRequest"];
+            };
+        };
+        responses: {
+            /** @description The request has succeeded. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["User"];
+                };
+            };
+            /** @description An unexpected error response. */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    Auth_logout: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description There is no content to send for this request, but the headers may be useful. */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description An unexpected error response. */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    Auth_register: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RegisterRequest"];
+            };
+        };
+        responses: {
+            /** @description The request has succeeded and a new resource has been created as a result. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["User"];
+                };
+            };
+            /** @description An unexpected error response. */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
     Availability_list: {
         parameters: {
             query?: {
@@ -1717,6 +1933,69 @@ export interface operations {
             };
         };
     };
+    Public_organizer: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                username: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The request has succeeded. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PublicOrganizer"];
+                };
+            };
+            /** @description An unexpected error response. */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
+    Public_eventType: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                username: string;
+                slug: components["schemas"]["Slug"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The request has succeeded. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EventType"];
+                };
+            };
+            /** @description An unexpected error response. */
+            default: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
+                };
+            };
+        };
+    };
     Slots_list: {
         parameters: {
             query: {
@@ -1730,6 +2009,11 @@ export interface operations {
                 timeZone?: components["schemas"]["TimeZone"];
                 /** @description Выбранная длительность в минутах для событий с `lengthInMinutesOptions` */
                 duration?: number;
+                /**
+                 * @description Переопределить расписание доступности (для предпросмотра при
+                 *     редактировании типа события); по умолчанию — расписание события
+                 */
+                scheduleId?: number;
             };
             header?: never;
             path?: never;

@@ -1,8 +1,9 @@
-import { AppShell, Group, Text, NavLink as MantineNavLink, Avatar, Box } from "@mantine/core";
-import { IconLink, IconCalendarEvent, IconClock, IconUser } from "@tabler/icons-react";
+import { AppShell, Group, Text, NavLink as MantineNavLink, Avatar, Box, UnstyledButton, ActionIcon, Tooltip } from "@mantine/core";
+import { IconLink, IconCalendarEvent, IconClock, IconUser, IconLogout } from "@tabler/icons-react";
 import { NavLink, Outlet, useLocation } from "react-router-dom";
-import { meApi } from "../api/client";
-import { useResource } from "../api/useApi";
+import { useCurrentUser } from "../api/user";
+import { authApi } from "../api/client";
+import classes from "./Layout.module.css";
 
 const NAV = [
   { to: "/event-types", label: "Типы событий", icon: IconLink },
@@ -20,50 +21,72 @@ const initials = (name: string) =>
     .toUpperCase();
 
 export default function Layout() {
-  const { data: user } = useResource(() => meApi.get(), []);
+  const { data: user, reload } = useCurrentUser();
   const location = useLocation();
 
-  return (
-    <AppShell header={{ height: 0 }} navbar={{ width: 250, breakpoint: "sm" }} padding="lg">
-      <AppShell.Navbar p="md">
-        <AppShell.Section>
-          <Group gap="xs" mb="md" px="xs">
-            <Text size="xl">📅</Text>
-            <Text fw={700} size="lg">
-              Calendar
-            </Text>
-          </Group>
-        </AppShell.Section>
+  const handleLogout = async () => {
+    await authApi.logout();
+    reload(); // /me → 401 → AuthGate покажет экран входа
+  };
 
+  return (
+    <AppShell header={{ height: 0 }} navbar={{ width: 256, breakpoint: "sm" }} padding="xl">
+      <AppShell.Navbar p="sm" className={classes.navbar}>
         <AppShell.Section grow>
-          {NAV.map(({ to, label, icon: Icon }) => (
-            <MantineNavLink
-              key={to}
-              component={NavLink}
-              to={to}
-              label={label}
-              leftSection={<Icon size={18} />}
-              active={location.pathname.startsWith(to)}
-              variant="light"
-            />
-          ))}
+          {NAV.map(({ to, label, icon: Icon }) => {
+            const active = location.pathname.startsWith(to);
+            return (
+              <MantineNavLink
+                key={to}
+                component={NavLink}
+                to={to}
+                label={label}
+                leftSection={<Icon size={18} stroke={1.8} />}
+                active={active}
+                variant="subtle"
+                className={`${classes.navItem} ${active ? classes.navItemActive : ""}`}
+              />
+            );
+          })}
         </AppShell.Section>
 
         <AppShell.Section>
           {user && (
-            <MantineNavLink
-              component={NavLink}
-              to="/profile"
-              label={user.name}
-              description={user.email}
-              leftSection={<Avatar radius="xl" size="sm" color="dark">{initials(user.name)}</Avatar>}
-            />
+            <UnstyledButton component={NavLink} to="/profile" className={classes.userBlock} p="xs" display="block">
+              <Group gap="xs" wrap="nowrap">
+                <Avatar radius="xl" size="sm" color="dark">
+                  {initials(user.name)}
+                </Avatar>
+                <div style={{ minWidth: 0, flex: 1 }}>
+                  <Text size="sm" fw={500} truncate c="gray.9">
+                    {user.name}
+                  </Text>
+                  <Text size="xs" c="dimmed" truncate>
+                    {user.email}
+                  </Text>
+                </div>
+                <Tooltip label="Выйти">
+                  <ActionIcon
+                    variant="subtle"
+                    color="gray"
+                    component="div"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      handleLogout();
+                    }}
+                  >
+                    <IconLogout size={18} stroke={1.8} />
+                  </ActionIcon>
+                </Tooltip>
+              </Group>
+            </UnstyledButton>
           )}
         </AppShell.Section>
       </AppShell.Navbar>
 
       <AppShell.Main>
-        <Box maw={900} mx="auto">
+        <Box maw={1100} mx="auto">
           <Outlet />
         </Box>
       </AppShell.Main>

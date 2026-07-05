@@ -7,7 +7,11 @@
     "docs:build": "tsp compile .",
     "docs": "npm run docs:build && serve -l 8080 .",
     "mock": "prism mock tsp-output/schema/openapi.yaml -p 4010",
-    "dev": "concurrently -n mock,web -c magenta,cyan \"npm run mock\" \"npm --prefix web run dev\""
+    "back": "node --env-file-if-exists=server/.env server/src/index.js",
+    "back:seed": "node server/src/seed.js",
+    "back:install": "npm --prefix server install",
+    "dev": "concurrently -n back,web -c green,cyan \"npm run back\" \"npm --prefix web run dev\"",
+    "dev:mock": "concurrently -n mock,web -c magenta,cyan \"npm run mock\" \"npm --prefix web run dev\""
   },
   "dependencies": {
     "@typespec/compiler": "1.11.0",

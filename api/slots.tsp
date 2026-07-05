@@ -59,6 +59,8 @@ interface Slots {
    * @param end Конец диапазона (дата включительно)
    * @param timeZone Таймзона участника; по умолчанию — таймзона расписания
    * @param duration Выбранная длительность в минутах для событий с `lengthInMinutesOptions`
+   * @param scheduleId Переопределить расписание доступности (для предпросмотра при
+   * редактировании типа события); по умолчанию — расписание события
    */
   @get list(
     @query eventTypeId: int64,
@@ -66,5 +68,6 @@ interface Slots {
     @query end: plainDate,
     @query timeZone?: TimeZone,
     @query duration?: int32,
+    @query scheduleId?: int64,
   ): SlotsResponse | ApiError;
 }

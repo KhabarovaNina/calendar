@@ -9,12 +9,14 @@ import "dayjs/locale/ru";
 import "@mantine/core/styles.css";
 import "@mantine/notifications/styles.css";
 import "@mantine/dates/styles.css";
+import "./global.css";
 
 import App from "./App";
+import { theme } from "./theme";
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
-    <MantineProvider defaultColorScheme="light">
+    <MantineProvider theme={theme} defaultColorScheme="light">
       <DatesProvider settings={{ locale: "ru", firstDayOfWeek: 1 }}>
         <Notifications position="top-right" />
         <BrowserRouter>

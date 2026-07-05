@@ -7,3 +7,8 @@ dist/
 
 # Dependency directories
 node_modules/
+
+# Локальная база SQLite бэкенда
+server/data.db
+server/data.db-shm
+server/data.db-wal

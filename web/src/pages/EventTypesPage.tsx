@@ -4,12 +4,12 @@ import {
   ActionIcon,
   Badge,
   Button,
-  Card,
   Group,
   Loader,
   Menu,
   Modal,
   Stack,
+  Switch,
   Text,
   TextInput,
   Textarea,
@@ -24,49 +24,46 @@ import {
   IconDotsVertical,
   IconCopy,
   IconTrash,
-  IconEye,
-  IconEyeOff,
   IconPlus,
   IconLink,
   IconCheck,
+  IconExternalLink,
 } from "@tabler/icons-react";
-import { eventTypesApi, meApi, type EventType } from "../api/client";
+import { eventTypesApi, type EventType } from "../api/client";
 import { useResource } from "../api/useApi";
+import { useCurrentUser } from "../api/user";
 import { fmtPrice, slugify } from "../lib/format";
+import classes from "./EventTypesPage.module.css";
 
 export default function EventTypesPage() {
   const { data, loading, error, reload } = useResource(() => eventTypesApi.list(), []);
-  const { data: user } = useResource(() => meApi.get(), []);
+  const { data: user } = useCurrentUser();
   const [createOpen, setCreateOpen] = useState(false);
   const navigate = useNavigate();
 
   const username = user?.username ?? "nina";
   const bookingUrl = (et: EventType) => `${window.location.origin}/book/${username}/${et.slug}`;
 
-  const notifyMock = () =>
-    notifications.show({
-      color: "blue",
-      title: "Отправлено на mock-сервер",
-      message: "Prism не хранит состояние — список вернётся к данным из спеки.",
-    });
-
   const toggleHidden = async (et: EventType) => {
     await eventTypesApi.update(et.id, { hidden: !et.hidden });
-    notifyMock();
     reload();
   };
 
   const duplicate = async (et: EventType) => {
     await eventTypesApi.duplicate(et.id);
-    notifyMock();
+    notifications.show({ color: "blue", title: "Скопировано", message: et.title });
     reload();
   };
 
   const remove = async (et: EventType) => {
-    if (!window.confirm(`Удалить «${et.title}»?`)) return;
-    await eventTypesApi.remove(et.id);
-    notifyMock();
-    reload();
+    if (!window.confirm(`Удалить «${et.title}»? Связанные брони тоже будут удалены.`)) return;
+    try {
+      await eventTypesApi.remove(et.id);
+      notifications.show({ color: "blue", title: "Удалено", message: et.title });
+      reload();
+    } catch (e) {
+      notifications.show({ color: "red", title: "Не удалось удалить", message: e instanceof Error ? e.message : "" });
+    }
   };
 
   return (
@@ -84,43 +81,52 @@ export default function EventTypesPage() {
       {loading && <Loader />}
       {error && <Text c="red">Ошибка загрузки: {error}</Text>}
 
-      <Stack gap="sm">
-        {data?.items.map((et) => (
-          <Card key={et.id} withBorder padding="md">
-            <Group justify="space-between" wrap="nowrap">
-              <div style={{ minWidth: 0 }}>
-                <Group gap="xs">
-                  <Text fw={600} component={Link} to={`/event-types/${et.id}`} style={{ textDecoration: "none" }}>
+      {data && (
+        <div className={classes.list}>
+          {data.items.length === 0 && (
+            <div className={classes.empty}>Пока нет ни одного типа событий.</div>
+          )}
+          {data.items.map((et) => (
+            <div key={et.id} className={classes.row}>
+              <div style={{ minWidth: 0, flex: 1 }}>
+                <Group gap={8} wrap="nowrap">
+                  <Text
+                    fw={600}
+                    component={Link}
+                    to={`/event-types/${et.id}`}
+                    className={classes.title}
+                    truncate
+                  >
                     {et.title}
                   </Text>
-                  <Text c="dimmed" size="sm">
-                    /{et.slug}
-                  </Text>
+                  <span className={classes.slug}>/{et.slug}</span>
                 </Group>
                 {et.description && (
-                  <Text c="dimmed" size="sm" lineClamp={1}>
+                  <Text c="dimmed" size="sm" lineClamp={1} mt={2}>
                     {et.description}
                   </Text>
                 )}
-                <Group gap="xs" mt={6}>
-                  <Badge variant="light" color="gray">
-                    {et.lengthInMinutes} мин
-                  </Badge>
-                  {et.hidden && <Badge variant="light" color="gray">Скрыто</Badge>}
-                  {et.requiresConfirmation && (
-                    <Badge variant="light" color="yellow">
-                      Требует подтверждения
-                    </Badge>
-                  )}
+                <Group gap="xs" mt={8}>
+                  <Badge>{et.lengthInMinutes} мин</Badge>
+                  {et.requiresConfirmation && <Badge color="yellow">Требует подтверждения</Badge>}
                   {et.price && (
-                    <Badge variant="light" color="green">
-                      {fmtPrice(et.price.amount, et.price.currency)}
-                    </Badge>
+                    <Badge color="green">{fmtPrice(et.price.amount, et.price.currency)}</Badge>
                   )}
                 </Group>
               </div>
 
-              <Group gap="xs" wrap="nowrap">
+              <Group gap={4} wrap="nowrap">
+                <Tooltip label="Открыть страницу бронирования">
+                  <ActionIcon
+                    variant="subtle"
+                    color="gray"
+                    component="a"
+                    href={bookingUrl(et)}
+                    target="_blank"
+                  >
+                    <IconExternalLink size={18} />
+                  </ActionIcon>
+                </Tooltip>
                 <CopyButton value={bookingUrl(et)}>
                   {({ copied, copy }) => (
                     <Tooltip label={copied ? "Скопировано" : "Копировать ссылку"}>
@@ -130,6 +136,14 @@ export default function EventTypesPage() {
                     </Tooltip>
                   )}
                 </CopyButton>
+                <Tooltip label={et.hidden ? "Скрыто" : "Видно"}>
+                  <Switch
+                    checked={!et.hidden}
+                    onChange={() => toggleHidden(et)}
+                    size="sm"
+                    aria-label="Видимость"
+                  />
+                </Tooltip>
                 <Menu position="bottom-end" withinPortal>
                   <Menu.Target>
                     <ActionIcon variant="subtle" color="gray">
@@ -137,12 +151,6 @@ export default function EventTypesPage() {
                     </ActionIcon>
                   </Menu.Target>
                   <Menu.Dropdown>
-                    <Menu.Item
-                      leftSection={et.hidden ? <IconEye size={16} /> : <IconEyeOff size={16} />}
-                      onClick={() => toggleHidden(et)}
-                    >
-                      {et.hidden ? "Показать" : "Скрыть"}
-                    </Menu.Item>
                     <Menu.Item leftSection={<IconCopy size={16} />} onClick={() => duplicate(et)}>
                       Дублировать
                     </Menu.Item>
@@ -153,10 +161,10 @@ export default function EventTypesPage() {
                   </Menu.Dropdown>
                 </Menu>
               </Group>
-            </Group>
-          </Card>
-        ))}
-      </Stack>
+            </div>
+          ))}
+        </div>
+      )}
 
       <CreateModal
         opened={createOpen}

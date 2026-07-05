@@ -1,6 +1,7 @@
-// HTTP-клиент к mock-серверу Prism. Типы сгенерированы из TypeSpec-спеки
+// HTTP-клиент к бэкенду. Типы сгенерированы из TypeSpec-спеки
 // (`npm run gen:api` → schema.d.ts). Запросы идут на /api, который Vite
-// проксирует на Prism (:4010). См. vite.config.ts.
+// проксирует на бэкенд (:4010). См. vite.config.ts.
+// Бэкенд — реальный сервер на Express + SQLite (../server), данные персистятся.
 
 import createClient from "openapi-fetch";
 import type { components, paths } from "./schema";
@@ -17,12 +18,16 @@ export type EventTypeInput = Omit<
 >;
 export type Schedule = components["schemas"]["Schedule"];
 export type AvailabilityRule = components["schemas"]["AvailabilityRule"];
+export type DateOverride = components["schemas"]["DateOverride"];
 export type Booking = components["schemas"]["Booking"];
 export type BookingStatus = components["schemas"]["BookingStatus"];
 export type Attendee = components["schemas"]["Attendee"];
 export type EventLocation = components["schemas"]["EventLocation"];
 export type Slot = components["schemas"]["Slot"];
 export type SlotsResponse = components["schemas"]["SlotsResponse"];
+export type PublicOrganizer = components["schemas"]["PublicOrganizer"];
+export type BookingField = components["schemas"]["BookingField"];
+export type CreateBookingRequest = components["schemas"]["CreateBookingRequest"];
 
 export class ApiError extends Error {
   constructor(
@@ -41,6 +46,28 @@ function unwrap<T>(res: { data?: T; error?: unknown; response: Response }): T {
   }
   return res.data;
 }
+
+/** Для ответов без тела (204 No Content): бросает ApiError только на реальной ошибке. */
+function unwrapVoid(res: { error?: unknown; response: Response }): void {
+  if (!res.response.ok) {
+    const err = res.error as { message?: string } | undefined;
+    throw new ApiError(res.response.status, err?.message ?? `HTTP ${res.response.status}`);
+  }
+}
+
+// ── /auth ──
+export type LoginRequest = components["schemas"]["LoginRequest"];
+export type RegisterRequest = components["schemas"]["RegisterRequest"];
+
+export const authApi = {
+  login: async (body: LoginRequest) =>
+    unwrap(await client.POST("/auth/login", { body })),
+  register: async (body: RegisterRequest) =>
+    unwrap(await client.POST("/auth/register", { body })),
+  logout: async () => {
+    await client.POST("/auth/logout");
+  },
+};
 
 // ── /me ──
 export const meApi = {
@@ -64,7 +91,7 @@ export const eventTypesApi = {
       }),
     ),
   remove: async (eventTypeId: number) =>
-    unwrap(await client.DELETE("/event-types/{eventTypeId}", { params: { path: { eventTypeId } } })),
+    unwrapVoid(await client.DELETE("/event-types/{eventTypeId}", { params: { path: { eventTypeId } } })),
   duplicate: async (eventTypeId: number) =>
     unwrap(
       await client.POST("/event-types/{eventTypeId}/duplicate", {
@@ -74,10 +101,15 @@ export const eventTypesApi = {
 };
 
 // ── /availability ──
+/** Поля для создания расписания (без серверных readonly-полей) */
+export type ScheduleInput = Omit<Schedule, "id" | "ownerId">;
+
 export const availabilityApi = {
   list: async () => unwrap(await client.GET("/availability")),
   get: async (scheduleId: number) =>
     unwrap(await client.GET("/availability/{scheduleId}", { params: { path: { scheduleId } } })),
+  create: async (body: ScheduleInput) =>
+    unwrap(await client.POST("/availability", { body: body as Schedule })),
   update: async (scheduleId: number, body: Partial<Schedule>) =>
     unwrap(
       await client.PATCH("/availability/{scheduleId}", {
@@ -85,6 +117,16 @@ export const availabilityApi = {
         body,
       }),
     ),
+  remove: async (scheduleId: number) =>
+    unwrapVoid(await client.DELETE("/availability/{scheduleId}", { params: { path: { scheduleId } } })),
+};
+
+// ── /public (страница бронирования, без авторизации) ──
+export const publicApi = {
+  organizer: async (username: string) =>
+    unwrap(await client.GET("/public/{username}", { params: { path: { username } } })),
+  eventType: async (username: string, slug: string) =>
+    unwrap(await client.GET("/public/{username}/{slug}", { params: { path: { username, slug } } })),
 };
 
 // ── /slots ──
@@ -94,6 +136,8 @@ export interface SlotsQuery {
   end: string;
   timeZone?: string;
   duration?: number;
+  /** Переопределить расписание (предпросмотр при редактировании типа события) */
+  scheduleId?: number;
 }
 
 export const slotsApi = {
@@ -113,6 +157,8 @@ export interface BookingFilters {
 export const bookingsApi = {
   list: async (query: BookingFilters = {}) =>
     unwrap(await client.GET("/bookings", { params: { query } })),
+  create: async (body: CreateBookingRequest) =>
+    unwrap(await client.POST("/bookings", { body })),
   get: async (bookingUid: string) =>
     unwrap(await client.GET("/bookings/{bookingUid}", { params: { path: { bookingUid } } })),
   cancel: async (bookingUid: string, reason?: string) =>
@@ -120,6 +166,13 @@ export const bookingsApi = {
       await client.POST("/bookings/{bookingUid}/cancel", {
         params: { path: { bookingUid } },
         body: { reason },
+      }),
+    ),
+  reschedule: async (bookingUid: string, start: string, reason?: string) =>
+    unwrap(
+      await client.POST("/bookings/{bookingUid}/reschedule", {
+        params: { path: { bookingUid } },
+        body: { start, reason },
       }),
     ),
   confirm: async (bookingUid: string) =>

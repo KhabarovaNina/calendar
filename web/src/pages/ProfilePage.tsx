@@ -12,6 +12,7 @@ import {
 } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
 import { meApi, type User } from "../api/client";
+import { useCurrentUser } from "../api/user";
 
 const TZ = [
   "Europe/Moscow",
@@ -25,12 +26,14 @@ const TZ = [
 ];
 
 export default function ProfilePage() {
+  const { data: currentUser } = useCurrentUser();
   const [user, setUser] = useState<User | null>(null);
   const [saving, setSaving] = useState(false);
 
+  // Локальная редактируемая копия из общего запроса /me (см. UserProvider).
   useEffect(() => {
-    meApi.get().then(setUser);
-  }, []);
+    if (currentUser) setUser(currentUser);
+  }, [currentUser]);
 
   if (!user) return <Loader />;
 
@@ -51,7 +54,7 @@ export default function ProfilePage() {
       notifications.show({
         color: "teal",
         title: "Сохранено",
-        message: "Профиль отправлен на mock-сервер (Prism не персистит).",
+        message: "Профиль сохранён.",
       });
     } catch (e) {
       notifications.show({ color: "red", title: "Ошибка", message: e instanceof Error ? e.message : "" });

@@ -8,6 +8,8 @@ import "./api/event-types.tsp";
 import "./api/availability.tsp";
 import "./api/slots.tsp";
 import "./api/bookings.tsp";
+import "./api/public.tsp";
+import "./api/auth.tsp";
 
 using Http;
 
