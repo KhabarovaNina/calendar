@@ -18,12 +18,18 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          # Полная история нужна, чтобы --fill смог вычислить diff против main
+          fetch-depth: 0
 
       - name: Open PR into main if none exists
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           branch="${GITHUB_REF_NAME}"
+          # checkout тянет только пушнутую ветку — подтягиваем базу отдельно,
+          # иначе gh pr create --fill не находит origin/main
+          git fetch --no-tags origin +refs/heads/main:refs/remotes/origin/main
           # Если открытый PR для этой ветки уже есть — ничего не делаем
           if gh pr view "$branch" --json state --jq .state 2>/dev/null | grep -q OPEN; then
             echo "PR для '$branch' уже открыт — пропускаю."
