@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.2.0](https://github.com/KhabarovaNina/calendar/compare/v0.1.1...v0.2.0) (2026-07-05)
+
+
+### Features
+
+* **web:** move visibility toggle before action buttons on event types ([c001bcb](https://github.com/KhabarovaNina/calendar/commit/c001bcbaa47141b20726f8dbcb5ce68ae1012967))
+* **web:** move visibility toggle before action buttons on event types ([bcc16f9](https://github.com/KhabarovaNina/calendar/commit/bcc16f92e15cf8da9be56de67016e27cfc45da04))
+
 ## [0.1.1](https://github.com/KhabarovaNina/calendar/compare/v0.1.0...v0.1.1) (2026-07-05)
 
 
