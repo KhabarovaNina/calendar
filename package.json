@@ -5,16 +5,24 @@
   "private": true,
   "scripts": {
     "docs:build": "tsp compile .",
-    "docs": "npm run docs:build && serve -l 8080 ."
+    "docs": "npm run docs:build && serve -l 8080 .",
+    "mock": "prism mock tsp-output/schema/openapi.yaml -p 4010",
+    "back": "node --env-file-if-exists=server/.env server/src/index.js",
+    "back:seed": "node server/src/seed.js",
+    "back:install": "npm --prefix server install",
+    "dev": "concurrently -n back,web -c green,cyan \"npm run back\" \"npm --prefix web run dev\"",
+    "dev:mock": "concurrently -n mock,web -c magenta,cyan \"npm run mock\" \"npm --prefix web run dev\""
   },
   "dependencies": {
     "@typespec/compiler": "1.11.0",
     "@typespec/http": "1.11.0",
-    "@typespec/rest": "0.81.0",
     "@typespec/openapi": "1.11.0",
-    "@typespec/openapi3": "1.11.0"
+    "@typespec/openapi3": "1.11.0",
+    "@typespec/rest": "0.81.0"
   },
   "devDependencies": {
+    "@stoplight/prism-cli": "^5.14.2",
+    "concurrently": "^9.2.3",
     "serve": "^14.2.4"
   },
   "packageManager": "npm@11.18.0+sha512.4faecce0be70366d1c67b1012c4adc1246354a6cc45bf589f92003073b05518d547403df1475c542d67a4845e22b4fafcd7cac0af02c7a96cc6814f09eb003fb"

@@ -36,6 +36,7 @@ model Page<T> {
   items: T[];
 
   /** Общее количество записей */
+  @example(1)
   totalCount: int32;
 }
 

@@ -140,6 +140,26 @@ model EventPrice {
 }
 
 /** Тип события — то, что участники могут забронировать */
+@example(#{
+  id: 1,
+  title: "Интро-звонок",
+  slug: "intro",
+  description: "Короткое знакомство на 15 минут.",
+  lengthInMinutes: 15,
+  locations: #[#{ type: "integration", integration: "google-meet" }],
+  hidden: false,
+  requiresConfirmation: false,
+  disableGuests: false,
+  minimumBookingNotice: 120,
+  beforeEventBuffer: 0,
+  afterEventBuffer: 0,
+  bookingWindowDays: 60,
+  schedulingType: SchedulingType.individual,
+  scheduleId: 1,
+  ownerId: 1,
+  createdAt: utcDateTime.fromISO("2026-01-15T09:00:00Z"),
+  updatedAt: utcDateTime.fromISO("2026-01-15T09:00:00Z"),
+})
 model EventType {
   @visibility(Lifecycle.Read)
   id: int64;

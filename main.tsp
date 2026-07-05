@@ -6,7 +6,10 @@ import "./common.tsp";
 import "./api/me.tsp";
 import "./api/event-types.tsp";
 import "./api/availability.tsp";
+import "./api/slots.tsp";
 import "./api/bookings.tsp";
+import "./api/public.tsp";
+import "./api/auth.tsp";
 
 using Http;
 
@@ -16,6 +19,7 @@ using Http;
  * Блоки API (по файлам в ./api):
  * - /me — профиль текущего пользователя
  * - /availability — расписания доступности организатора
+ * - /slots — расчёт свободных времён для бронирования
  * - /bookings — управление бронированиями
  * - /event-types — типы событий, которые можно бронировать
  */

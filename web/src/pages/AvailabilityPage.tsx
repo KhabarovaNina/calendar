@@ -1,132 +1,258 @@
-import { useEffect, useState } from "react";
-import { availability, type AvailabilityRule, type Schedule, type Weekday } from "../api";
+import { useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import {
+  ActionIcon,
+  Badge,
+  Button,
+  Group,
+  Loader,
+  Menu,
+  Modal,
+  Stack,
+  Text,
+  TextInput,
+  Title,
+} from "@mantine/core";
+import { useForm } from "@mantine/form";
+import { notifications } from "@mantine/notifications";
+import {
+  IconDotsVertical,
+  IconCopy,
+  IconTrash,
+  IconPlus,
+  IconStar,
+} from "@tabler/icons-react";
+import { availabilityApi, type AvailabilityRule, type Schedule } from "../api/client";
+import { confirm } from "../components/confirm";
+import { useResource } from "../api/useApi";
+import classes from "./EventTypesPage.module.css";
 
-const DAYS: { key: Weekday; label: string }[] = [
-  { key: "monday", label: "Понедельник" },
-  { key: "tuesday", label: "Вторник" },
-  { key: "wednesday", label: "Среда" },
-  { key: "thursday", label: "Четверг" },
-  { key: "friday", label: "Пятница" },
-  { key: "saturday", label: "Суббота" },
-  { key: "sunday", label: "Воскресенье" },
+type Weekday = AvailabilityRule["days"][number];
+
+const SHORT: Record<Weekday, string> = {
+  monday: "Пн",
+  tuesday: "Вт",
+  wednesday: "Ср",
+  thursday: "Чт",
+  friday: "Пт",
+  saturday: "Сб",
+  sunday: "Вс",
+};
+const ORDER: Weekday[] = [
+  "monday",
+  "tuesday",
+  "wednesday",
+  "thursday",
+  "friday",
+  "saturday",
+  "sunday",
 ];
 
-interface DayState {
-  enabled: boolean;
-  startTime: string;
-  endTime: string;
-}
+const hhmm = (t: string) => t.slice(0, 5);
 
-type WeekState = Record<Weekday, DayState>;
+/** Короткая сводка расписания: «Пн–Пт · 09:00–18:00». */
+function summarize(s: Schedule): string {
+  const active = ORDER.filter((d) => s.availability?.some((r) => r.days.includes(d)));
+  if (active.length === 0) return "Нет рабочих часов";
 
-function rulesToWeek(rules: AvailabilityRule[]): WeekState {
-  const week = {} as WeekState;
-  for (const { key } of DAYS) {
-    const rule = rules.find((r) => r.days.includes(key));
-    week[key] = rule
-      ? { enabled: true, startTime: rule.startTime, endTime: rule.endTime }
-      : { enabled: false, startTime: "09:00", endTime: "18:00" };
+  // Свернём подряд идущие дни в диапазоны.
+  const groups: string[] = [];
+  let runStart = active[0];
+  let prev = active[0];
+  for (let i = 1; i <= active.length; i++) {
+    const cur = active[i];
+    const contiguous = cur && ORDER.indexOf(cur) === ORDER.indexOf(prev) + 1;
+    if (!contiguous) {
+      groups.push(runStart === prev ? SHORT[runStart] : `${SHORT[runStart]}–${SHORT[prev]}`);
+      if (cur) runStart = cur;
+    }
+    if (cur) prev = cur;
   }
-  return week;
-}
 
-function weekToRules(week: WeekState): AvailabilityRule[] {
-  // Дни с одинаковым интервалом группируются в одно правило
-  const groups = new Map<string, Weekday[]>();
-  for (const { key } of DAYS) {
-    const d = week[key];
-    if (!d.enabled) continue;
-    const groupKey = `${d.startTime}-${d.endTime}`;
-    groups.set(groupKey, [...(groups.get(groupKey) ?? []), key]);
-  }
-  return [...groups.entries()].map(([groupKey, days]) => {
-    const [startTime, endTime] = groupKey.split("-");
-    return { days, startTime, endTime };
-  });
+  const first = s.availability?.[0];
+  const time = first ? `${hhmm(first.startTime)}–${hhmm(first.endTime)}` : "";
+  return `${groups.join(", ")}${time ? ` · ${time}` : ""}`;
 }
 
 export default function AvailabilityPage() {
-  const [schedule, setSchedule] = useState<Schedule | null>(null);
-  const [week, setWeek] = useState<WeekState | null>(null);
-  const [saving, setSaving] = useState(false);
-  const [saved, setSaved] = useState(false);
+  const { data, loading, error, reload } = useResource(() => availabilityApi.list(), []);
+  const [createOpen, setCreateOpen] = useState(false);
+  const navigate = useNavigate();
 
-  useEffect(() => {
-    availability.list().then((page) => {
-      const s = page.items.find((x) => x.isDefault) ?? page.items[0];
-      if (s) {
-        setSchedule(s);
-        setWeek(rulesToWeek(s.availability));
-      }
+  const setDefault = async (s: Schedule) => {
+    const others = (data?.items ?? []).filter((x) => x.id !== s.id && x.isDefault);
+    await Promise.all(others.map((x) => availabilityApi.update(x.id, { isDefault: false })));
+    await availabilityApi.update(s.id, { isDefault: true });
+    notifications.show({ color: "teal", title: "Расписание по умолчанию", message: s.name });
+    reload();
+  };
+
+  const duplicate = async (s: Schedule) => {
+    await availabilityApi.create({
+      name: `${s.name} (копия)`,
+      timeZone: s.timeZone,
+      availability: s.availability,
+      overrides: s.overrides,
+      isDefault: false,
     });
-  }, []);
+    notifications.show({ color: "blue", title: "Скопировано", message: s.name });
+    reload();
+  };
 
-  if (!schedule || !week) return <div className="loading">Загрузка…</div>;
-
-  const setDay = (day: Weekday, patch: Partial<DayState>) =>
-    setWeek({ ...week, [day]: { ...week[day], ...patch } });
-
-  const save = async () => {
-    setSaving(true);
-    await availability.update(schedule.id, { availability: weekToRules(week) });
-    setSaving(false);
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
+  const remove = async (s: Schedule) => {
+    if (s.isDefault) {
+      notifications.show({ color: "red", title: "Нельзя удалить", message: "Это расписание по умолчанию." });
+      return;
+    }
+    const ok = await confirm({
+      title: "Удалить расписание?",
+      message: `Расписание «${s.name}» будет удалено безвозвратно.`,
+      confirmLabel: "Удалить",
+      danger: true,
+    });
+    if (!ok) return;
+    await availabilityApi.remove(s.id);
+    notifications.show({ color: "blue", title: "Удалено", message: s.name });
+    reload();
   };
 
   return (
-    <>
-      <div className="page-header">
+    <Stack>
+      <Group justify="space-between" align="flex-start">
         <div>
-          <h1>Доступность</h1>
-          <p className="subtitle">
-            {schedule.name} · Таймзона: {schedule.timeZone}
-          </p>
+          <Title order={2}>Доступность</Title>
+          <Text c="dimmed">Расписания часов, в которые вас можно забронировать.</Text>
         </div>
-        <button className="btn primary" onClick={save} disabled={saving}>
-          {saving ? "Сохранение…" : saved ? "✓ Сохранено" : "Сохранить"}
-        </button>
-      </div>
+        <Button leftSection={<IconPlus size={16} />} onClick={() => setCreateOpen(true)}>
+          Создать
+        </Button>
+      </Group>
 
-      <div className="card" style={{ padding: "8px 24px" }}>
-        {DAYS.map(({ key, label }) => {
-          const d = week[key];
-          return (
-            <div className="day-row" key={key}>
-              <label className="day-name">
-                <input
-                  type="checkbox"
-                  checked={d.enabled}
-                  onChange={(e) => setDay(key, { enabled: e.target.checked })}
-                />
-                {label}
-              </label>
-              {d.enabled ? (
-                <>
-                  <input
-                    type="time"
-                    value={d.startTime}
-                    onChange={(e) => setDay(key, { startTime: e.target.value })}
-                  />
-                  <span className="muted">—</span>
-                  <input
-                    type="time"
-                    value={d.endTime}
-                    onChange={(e) => setDay(key, { endTime: e.target.value })}
-                  />
-                </>
-              ) : (
-                <span className="off">Недоступно</span>
-              )}
+      {loading && <Loader />}
+      {error && <Text c="red">Ошибка загрузки: {error}</Text>}
+
+      {data && (
+        <div className={classes.list}>
+          {data.items.length === 0 && <div className={classes.empty}>Пока нет ни одного расписания.</div>}
+          {data.items.map((s) => (
+            <div key={s.id} className={classes.row}>
+              <div style={{ minWidth: 0, flex: 1 }}>
+                <Group gap={8} wrap="nowrap">
+                  <Text fw={600} component={Link} to={`/availability/${s.id}`} className={classes.title} truncate>
+                    {s.name}
+                  </Text>
+                  {s.isDefault && (
+                    <Badge size="sm" variant="light" color="teal">
+                      По умолчанию
+                    </Badge>
+                  )}
+                </Group>
+                <Text c="dimmed" size="sm" mt={2}>
+                  {summarize(s)}
+                </Text>
+                <Text c="dimmed" size="xs" mt={2}>
+                  {s.timeZone}
+                </Text>
+              </div>
+
+              <Menu position="bottom-end" withinPortal>
+                <Menu.Target>
+                  <ActionIcon variant="subtle" color="gray">
+                    <IconDotsVertical size={18} />
+                  </ActionIcon>
+                </Menu.Target>
+                <Menu.Dropdown>
+                  {!s.isDefault && (
+                    <Menu.Item leftSection={<IconStar size={16} />} onClick={() => setDefault(s)}>
+                      Сделать по умолчанию
+                    </Menu.Item>
+                  )}
+                  <Menu.Item leftSection={<IconCopy size={16} />} onClick={() => duplicate(s)}>
+                    Дублировать
+                  </Menu.Item>
+                  <Menu.Divider />
+                  <Menu.Item color="red" leftSection={<IconTrash size={16} />} onClick={() => remove(s)}>
+                    Удалить
+                  </Menu.Item>
+                </Menu.Dropdown>
+              </Menu>
             </div>
-          );
-        })}
-      </div>
+          ))}
+        </div>
+      )}
 
-      <p className="muted" style={{ marginTop: 16 }}>
-        Слоты на публичной странице бронирования рассчитываются из этого расписания с учётом
-        существующих броней, буферов и минимального времени до брони.
-      </p>
-    </>
+      <CreateModal
+        opened={createOpen}
+        onClose={() => setCreateOpen(false)}
+        onCreated={(s) => {
+          setCreateOpen(false);
+          notifications.show({ color: "teal", title: "Создано", message: s.name });
+          navigate(`/availability/${s.id}`);
+        }}
+      />
+    </Stack>
+  );
+}
+
+function CreateModal({
+  opened,
+  onClose,
+  onCreated,
+}: {
+  opened: boolean;
+  onClose: () => void;
+  onCreated: (s: Schedule) => void;
+}) {
+  const form = useForm({
+    initialValues: { name: "" },
+    validate: { name: (v) => (v.trim() ? null : "Укажите название") },
+  });
+  const [saving, setSaving] = useState(false);
+
+  const submit = form.onSubmit(async (values) => {
+    setSaving(true);
+    try {
+      const s = await availabilityApi.create({
+        name: values.name,
+        timeZone: "Europe/Moscow",
+        availability: [
+          {
+            days: ["monday", "tuesday", "wednesday", "thursday", "friday"],
+            startTime: "09:00:00",
+            endTime: "18:00:00",
+          },
+        ],
+        isDefault: false,
+      });
+      onCreated(s);
+      form.reset();
+    } catch (e) {
+      notifications.show({ color: "red", title: "Ошибка", message: e instanceof Error ? e.message : "" });
+    } finally {
+      setSaving(false);
+    }
+  });
+
+  return (
+    <Modal opened={opened} onClose={onClose} title="Новое расписание" centered>
+      <form onSubmit={submit}>
+        <Stack>
+          <TextInput
+            label="Название"
+            placeholder="Например: Рабочие часы"
+            data-autofocus
+            {...form.getInputProps("name")}
+          />
+          <Group justify="flex-end">
+            <Button variant="default" onClick={onClose}>
+              Отмена
+            </Button>
+            <Button type="submit" loading={saving}>
+              Создать
+            </Button>
+          </Group>
+        </Stack>
+      </form>
+    </Modal>
   );
 }
