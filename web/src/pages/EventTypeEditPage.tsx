@@ -23,10 +23,9 @@ import { DatePicker } from "@mantine/dates";
 import { notifications } from "@mantine/notifications";
 import {
   IconArrowLeft,
-  IconClock,
   IconAdjustments,
   IconSettings,
-  IconCalendar,
+  IconClock,
 } from "@tabler/icons-react";
 import {
   availabilityApi,
@@ -97,13 +96,6 @@ export default function EventTypeEditPage() {
   const priceMajor = et.price ? et.price.amount / 100 : 0;
   const setPrice = (patch: Partial<NonNullable<EventType["price"]>>) =>
     set("price", { amount: et.price?.amount ?? 0, currency: et.price?.currency ?? "RUB", ...patch });
-
-  const limits = et.bookingLimits ?? {};
-  const setLimit = (k: "day" | "week" | "month", v: number | undefined) => {
-    const next = { ...limits, [k]: v };
-    if (v === undefined) delete next[k];
-    set("bookingLimits", Object.keys(next).length ? next : undefined);
-  };
 
   const recur = et.recurrence;
   const setRecur = (patch: Partial<NonNullable<EventType["recurrence"]>> | null) => {
@@ -177,11 +169,8 @@ export default function EventTypeEditPage() {
           <Tabs.Tab value="setup" leftSection={<IconSettings size={16} />}>
             Основное
           </Tabs.Tab>
-          <Tabs.Tab value="availability" leftSection={<IconCalendar size={16} />}>
+          <Tabs.Tab value="availability" leftSection={<IconClock size={16} />}>
             Доступность
-          </Tabs.Tab>
-          <Tabs.Tab value="limits" leftSection={<IconClock size={16} />}>
-            Ограничения
           </Tabs.Tab>
           <Tabs.Tab value="advanced" leftSection={<IconAdjustments size={16} />}>
             Дополнительно
@@ -279,82 +268,6 @@ export default function EventTypeEditPage() {
               />
             </Card>
           </Group>
-        </Tabs.Panel>
-
-        {/* ── Ограничения ── */}
-        <Tabs.Panel value="limits">
-          <Card withBorder padding="lg">
-            <Stack>
-              <Group grow align="flex-start">
-                <NumberInput
-                  label="Мин. время до брони, мин"
-                  min={0}
-                  value={et.minimumBookingNotice}
-                  onChange={(v) => set("minimumBookingNotice", Number(v) || 0)}
-                />
-                <NumberInput
-                  label="Окно бронирования, дней"
-                  min={1}
-                  value={et.bookingWindowDays ?? 60}
-                  onChange={(v) => set("bookingWindowDays", Number(v) || 60)}
-                />
-              </Group>
-
-              <Group grow align="flex-start">
-                <NumberInput
-                  label="Буфер до, мин"
-                  min={0}
-                  value={et.beforeEventBuffer}
-                  onChange={(v) => set("beforeEventBuffer", Number(v) || 0)}
-                />
-                <NumberInput
-                  label="Буфер после, мин"
-                  min={0}
-                  value={et.afterEventBuffer}
-                  onChange={(v) => set("afterEventBuffer", Number(v) || 0)}
-                />
-              </Group>
-
-              <Group grow align="flex-start">
-                <NumberInput
-                  label="Шаг сетки слотов, мин"
-                  description="Пусто — равен длительности"
-                  min={5}
-                  value={et.slotInterval ?? ""}
-                  onChange={(v) => set("slotInterval", v ? Number(v) : undefined)}
-                />
-                <NumberInput
-                  label="Мест в слоте"
-                  description="Для групповых событий"
-                  min={1}
-                  value={et.seatsPerTimeSlot ?? ""}
-                  onChange={(v) => set("seatsPerTimeSlot", v ? Number(v) : undefined)}
-                />
-              </Group>
-
-              <Divider label="Лимиты бронирований" labelPosition="left" />
-              <Group grow align="flex-start">
-                <NumberInput
-                  label="Макс. в день"
-                  min={1}
-                  value={limits.day ?? ""}
-                  onChange={(v) => setLimit("day", v ? Number(v) : undefined)}
-                />
-                <NumberInput
-                  label="Макс. в неделю"
-                  min={1}
-                  value={limits.week ?? ""}
-                  onChange={(v) => setLimit("week", v ? Number(v) : undefined)}
-                />
-                <NumberInput
-                  label="Макс. в месяц"
-                  min={1}
-                  value={limits.month ?? ""}
-                  onChange={(v) => setLimit("month", v ? Number(v) : undefined)}
-                />
-              </Group>
-            </Stack>
-          </Card>
         </Tabs.Panel>
 
         {/* ── Дополнительно ── */}
