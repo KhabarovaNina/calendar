@@ -52,7 +52,7 @@ model Attendee {
     id: 1,
     username: "nina",
     name: "Нина Хабарова",
-    email: "khabarova.ninaa@gmail.com",
+    email: "nina@dev.com",
     timeZone: "Europe/Moscow",
     createdAt: utcDateTime.fromISO("2026-01-15T09:00:00Z"),
   },

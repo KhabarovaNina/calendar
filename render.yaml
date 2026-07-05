@@ -1,0 +1,26 @@
+# Render Blueprint (Infrastructure as Code).
+# Разверни в дашборде Render: New → Blueprint → выбрать этот репозиторий.
+# Один Docker-сервис: Express-бэкенд отдаёт и /api, и собранный SPA (web/dist).
+#
+# ВНИМАНИЕ: на free-плане нет постоянного диска — SQLite (server/data.db) живёт
+# в эфемерной ФС контейнера и пересоздаётся из seed.js при каждом рестарте/редеплое.
+# Для сохранения данных между деплоями подними план и раскомментируй блок disk ниже.
+services:
+  - type: web
+    name: calendar
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    plan: free
+    healthCheckPath: /api/public/nina
+    autoDeploy: true
+    envVars:
+      - key: NODE_ENV
+        value: production
+      # Секрет сессий генерируется Render один раз и хранится в окружении.
+      - key: SESSION_SECRET
+        generateValue: true
+    # ── Постоянное хранилище (только для платных планов) ──
+    # disk:
+    #   name: calendar-data
+    #   mountPath: /data
+    # и добавь envVar DB_PATH=/data/data.db, чтобы БД жила на диске.

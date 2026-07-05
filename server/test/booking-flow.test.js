@@ -29,7 +29,7 @@ const SERVER_DIR = join(__dirname, "..");
 
 // Демо-данные из seed.js: организатор `nina` и два типа события.
 const SEED = {
-  email: "khabarova.ninaa@gmail.com",
+  email: "nina@dev.com",
   password: "password123",
   username: "nina",
   introEventId: 1, // «Интро-звонок», 15 мин, без подтверждения

@@ -9,6 +9,8 @@ import crypto from "node:crypto";
 import session from "express-session";
 import SqliteStoreFactory from "better-sqlite3-session-store";
 import { DateTime } from "luxon";
+import { fileURLToPath } from "node:url";
+import { dirname, join } from "node:path";
 
 import { db, initSchema } from "./db.js";
 import { seed } from "./seed.js";
@@ -22,16 +24,35 @@ import { computeSlots, isTimeAvailable } from "./slots.js";
 import { verifyPassword, createOrganizer } from "./auth.js";
 import { notifyBookingCreated, notifyBookingCancelled } from "./mailer.js";
 
-// Отдельная переменная (не PORT): под dev-раннером PORT занят фронтендом Vite.
-const PORT = process.env.BACKEND_PORT || 4010;
+// В production (Render) слушаем на PORT из окружения; локально в dev-раннере PORT
+// занят Vite, поэтому там используется отдельный BACKEND_PORT.
+const PORT = process.env.PORT || process.env.BACKEND_PORT || 4010;
+const isProd = process.env.NODE_ENV === "production";
+const __dirname = dirname(fileURLToPath(import.meta.url));
 
 initSchema();
 seed();
 
 const app = express();
+// За обратным прокси Render (TLS терминируется там) — доверяем X-Forwarded-*,
+// иначе secure-cookie сессии не выставится.
+if (isProd) app.set("trust proxy", 1);
 app.use(cors({ credentials: true }));
 // openapi-fetch для PATCH может слать application/merge-patch+json — парсим и его.
 app.use(express.json({ type: ["application/json", "application/*+json"] }));
+
+// В production фронтенд и API живут на одном origin: SPA обращается к /api/*,
+// а маршруты объявлены на корне — снимаем префикс и помечаем запрос как API,
+// чтобы SPA-фолбэк ниже не перехватывал 404 от бэкенда.
+if (isProd) {
+  app.use((req, res, next) => {
+    if (req.url === "/api" || req.url.startsWith("/api/")) {
+      req.url = req.url.slice(4) || "/";
+      req.isApi = true;
+    }
+    next();
+  });
+}
 
 // ── Сессии (SQLite-store в том же движке БД) ──
 const SqliteStore = SqliteStoreFactory(session);
@@ -747,6 +768,18 @@ app.get("/public/:username/:slug", (req, res) => {
   if (!event) return apiError(res, 404, "event_type_not_found", "Тип события не найдено");
   res.json(eventTypeToApi(event));
 });
+
+// ── Production: раздаём собранный фронтенд (web/dist) с одного origin ──
+// Статику отдаём как файлы, все остальные (не-API) GET-маршруты — index.html,
+// чтобы клиентский роутинг React Router работал при прямом заходе по ссылке.
+if (isProd) {
+  const webDist = join(__dirname, "..", "..", "web", "dist");
+  app.use(express.static(webDist));
+  app.get("*", (req, res, next) => {
+    if (req.isApi) return next(); // неизвестный API-маршрут → JSON-404 ниже
+    res.sendFile(join(webDist, "index.html"));
+  });
+}
 
 // ── 404 для неизвестных путей ──
 app.use((req, res) => apiError(res, 404, "not_found", `Маршрут ${req.method} ${req.path} не найден`));

@@ -13,7 +13,7 @@ namespace CalendarService;
   id: 1,
   username: "nina",
   name: "Нина Хабарова",
-  email: "khabarova.ninaa@gmail.com",
+  email: "nina@dev.com",
   timeZone: "Europe/Moscow",
   locale: "ru",
   defaultScheduleId: 1,

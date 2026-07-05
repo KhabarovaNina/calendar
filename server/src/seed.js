@@ -25,7 +25,7 @@ export function seed() {
       id: 1,
       username: "nina",
       name: "Нина Хабарова",
-      email: "khabarova.ninaa@gmail.com",
+      email: "nina@dev.com",
       passwordHash: hashPassword(SEED_PASSWORD),
       timeZone: "Europe/Moscow",
       locale: "ru",
@@ -270,5 +270,5 @@ export function seed() {
 if (import.meta.url === `file://${process.argv[1]}`) {
   const created = seed();
   console.log(created ? "✓ База засеяна демо-данными" : "• База уже содержит данные, сид пропущен");
-  if (created) console.log(`  Вход: khabarova.ninaa@gmail.com / ${SEED_PASSWORD}`);
+  if (created) console.log(`  Вход: nina@dev.com / ${SEED_PASSWORD}`);
 }
